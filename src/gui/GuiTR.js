@@ -43,6 +43,7 @@ else if (language === 'tr') GuiTR.select = 'turkish';
 else if (language === 'sv') GuiTR.select = 'svenska';
 else if (language === 'fr') GuiTR.select = 'français';
 else if (language === 'de') GuiTR.select = 'deutsch';
+else if (language === 'it') GuiTR.select = 'italiano';
 
 switch (getOptionsURL().language) {
 case 'english':

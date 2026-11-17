@@ -18,6 +18,7 @@ import Rtt from 'drawables/Rtt';
 import ShaderLib from 'render/ShaderLib';
 import MeshStatic from 'mesh/meshStatic/MeshStatic';
 import WebGLCaps from 'render/WebGLCaps';
+import GuiMobile from 'gui/GuiMobile';
 
 class Scene {
 
@@ -27,7 +28,9 @@ class Scene {
     this._cameraSpeed = 0.25;
 
     // cache canvas stuffs
-    this._pixelRatio = 1.0;
+    // Phones have 2-3 device pixels per CSS pixel: drawing all of them is
+    // sharp but slow, 1.5 keeps edges clean at a fraction of the cost.
+    this._pixelRatio = GuiMobile.isTouch() ? Math.min(window.devicePixelRatio || 1, 1.5) : 1.0;
     this._viewport = document.getElementById('viewport');
     this._canvas = document.getElementById('canvas');
     this._canvasWidth = 0;
@@ -537,7 +540,9 @@ class Scene {
 
   subdivideClamp(mesh, linear) {
     Subdivision.LINEAR = !!linear;
-    while (mesh.getNbFaces() < 50000)
+    // a phone stays fluid with about a quarter of the desktop density
+    var target = GuiMobile.isTouch() ? 20000 : 50000;
+    while (mesh.getNbFaces() < target)
       mesh.addLevel();
     // keep at max 4 multires
     mesh._meshes.splice(0, Math.min(mesh._meshes.length - 4, 4));

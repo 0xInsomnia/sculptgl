@@ -30,6 +30,7 @@ class SculptGL extends Scene {
     this._action = Enums.Action.NOTHING;
     this._lastNbPointers = 0;
     this._isWheelingIn = false;
+    this._oneFingerView = false; // touch: one finger turns the view instead of sculpting
 
     // masking
     this._maskX = 0;
@@ -206,7 +207,7 @@ class SculptGL extends Scene {
   onPanUpdateNbPointers(nbPointers) {
     // called on panstart or panmove (not consistent)
     var evProxy = this._eventProxy;
-    evProxy.which = nbPointers === 1 && this._lastNbPointers >= 1 ? 3 : nbPointers;
+    evProxy.which = nbPointers === 1 && (this._lastNbPointers >= 1 || this._oneFingerView) ? 3 : nbPointers;
     this._lastNbPointers = nbPointers;
     this.onDeviceDown(evProxy);
   }

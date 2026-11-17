@@ -212,7 +212,14 @@ var TR = {
 
   remeshTitleMC: 'Voxel remeshing (manifold tris)',
   remeshRemeshMC: 'Remesh',
-  remeshSmoothingMC: 'Relax topology'
+  remeshSmoothingMC: 'Relax topology',
+
+  // phone / tablet quick bar
+  mobileMenu: 'Menu',
+  mobileTools: 'Strumenti',
+  mobileUndo: 'Annulla',
+  mobileRedo: 'Ripeti',
+  mobileView: 'Ruota vista'
 };
 
 export default TR;

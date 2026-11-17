@@ -1,0 +1,265 @@
+/* Phone and tablet layer (see src/gui/GuiMobile.js). */
+
+html, body {
+  touch-action: none;
+  overscroll-behavior: none;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.gui-slider, .gui-color-saturation, .gui-color-hue, .gui-color-alpha {
+  touch-action: none;
+}
+
+.sgl-top, .sgl-bar, .sgl-backdrop {
+  display: none;
+}
+
+/* ------------------------------------------------------- quick bar */
+.sgl-touch .sgl-top, .sgl-touch .sgl-bar {
+  display: flex;
+  position: fixed;
+  z-index: 3;
+  font: 15px 'Open Sans', system-ui, sans-serif;
+  color: #eee;
+  pointer-events: none;
+}
+
+.sgl-top {
+  top: max(8px, env(safe-area-inset-top));
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  justify-content: space-between;
+}
+
+.sgl-bar {
+  bottom: max(8px, env(safe-area-inset-bottom));
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.sgl-touch:not(.sgl-phone) .sgl-top {
+  display: none;
+}
+
+.sgl-touch:not(.sgl-phone) .sgl-bar {
+  right: auto;
+  left: 50%;
+  width: min(560px, 60vw);
+  transform: translateX(-50%);
+}
+
+.sgl-buttons, .sgl-rows {
+  display: flex;
+  gap: 6px;
+}
+
+.sgl-rows {
+  flex-direction: column;
+  gap: 2px;
+  background: rgba(20, 21, 18, 0.82);
+  border-radius: 14px;
+  padding: 4px 12px;
+  pointer-events: auto;
+}
+
+.sgl-btn, .sgl-select {
+  pointer-events: auto;
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 12px;
+  background: rgba(20, 21, 18, 0.82);
+  color: #eee;
+  font: inherit;
+  font-size: 17px;
+}
+
+.sgl-select {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+}
+
+.sgl-btn[aria-pressed=true] {
+  background: #4f7f8c;
+  border-color: #9cd3e0;
+}
+
+.sgl-btn[hidden], .sgl-range[hidden] {
+  display: none;
+}
+
+.sgl-range {
+  display: grid;
+  grid-template-columns: 82px 1fr 34px;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+  font-size: 14px;
+}
+
+.sgl-range input {
+  width: 100%;
+  height: 32px;
+  margin: 0;
+  accent-color: #9cd3e0;
+  touch-action: none;
+}
+
+.sgl-range output {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------------------------------------------- phone: drawers */
+.sgl-phone .gui-topbar,
+.sgl-phone .gui-sidebar {
+  position: fixed !important;
+  top: 0 !important;
+  bottom: 0;
+  height: auto;
+  z-index: 5;
+  width: min(88vw, 360px) !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: max(10px, env(safe-area-inset-top)) 6px 24px;
+  font-size: 15px !important;
+  transition: transform 0.22s ease;
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+}
+
+.sgl-phone .gui-topbar {
+  left: 0;
+  transform: translateX(-105%);
+}
+
+.sgl-phone .gui-sidebar {
+  right: 0;
+  transform: translateX(105%);
+}
+
+.sgl-phone.sgl-menu-open .gui-topbar,
+.sgl-phone.sgl-panel-open .gui-sidebar {
+  transform: none;
+}
+
+.sgl-phone .gui-resize {
+  display: none;
+}
+
+.sgl-phone .sgl-backdrop {
+  display: block;
+  position: fixed;
+  inset: 0;
+  z-index: 4;
+  background: rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.sgl-phone.sgl-menu-open .sgl-backdrop,
+.sgl-phone.sgl-panel-open .sgl-backdrop {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* top menu: one entry per row, tap to open it in place */
+.sgl-phone .gui-topbar ul > li {
+  float: none;
+  display: block;
+  line-height: 46px;
+  padding: 0 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sgl-phone .gui-topbar ul > li > ul,
+.sgl-phone .gui-topbar ul > li:hover > ul {
+  display: none;
+  position: static;
+  width: auto;
+  opacity: 1;
+  pointer-events: auto;
+  margin: 0 0 10px;
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.sgl-phone .gui-topbar ul > li.sgl-open > ul {
+  display: block;
+}
+
+.sgl-phone .gui-topbar ul > li > ul > li {
+  height: auto;
+  min-height: 40px;
+  line-height: 40px;
+  margin: 2px 0;
+  border-bottom: 0;
+}
+
+/* side panel: rows and controls big enough for a finger */
+.sgl-phone .gui-sidebar > ul > label {
+  line-height: 44px;
+  font-size: 15px;
+}
+
+.sgl-phone .gui-sidebar > ul[opened=true] {
+  max-height: none;
+}
+
+.sgl-phone .gui-sidebar > ul[opened=false] {
+  height: 54px;
+  max-height: 54px;
+}
+
+.sgl-phone .gui-sidebar > ul > li,
+.sgl-phone .gui-topbar ul > li > ul > li {
+  min-height: 36px;
+  height: auto;
+  margin: 8px 6px;
+}
+
+.sgl-phone .gui-sidebar > ul > li > *,
+.sgl-phone .gui-topbar li li > * {
+  min-height: 36px;
+  line-height: 36px;
+}
+
+.sgl-phone .gui-input-checkbox + label {
+  width: 30px;
+  height: 30px;
+  min-height: 0 !important;
+  margin-top: 3px;
+}
+
+.sgl-phone .gui-input-checkbox + label::before {
+  top: -2px;
+  left: 10px;
+  height: 20px;
+  width: 8px;
+}
+
+.sgl-phone .gui-input-number {
+  width: 13%;
+  font-size: 14px;
+}
+
+/* label 36% + slider 47% + margin 2% + number 13% stay on one line */
+.sgl-phone .gui-slider {
+  width: 47%;
+  height: 36px;
+}
+
+.sgl-phone .gui-select,
+.sgl-phone .gui-button {
+  font-size: 15px;
+  min-height: 36px;
+}

@@ -11,6 +11,7 @@ import GuiScene from 'gui/GuiScene';
 import GuiSculpting from 'gui/GuiSculpting';
 import GuiStates from 'gui/GuiStates';
 import GuiTablet from 'gui/GuiTablet';
+import GuiMobile from 'gui/GuiMobile';
 import ShaderContour from 'render/shaders/ShaderContour';
 
 import Export from 'files/Export';
@@ -85,6 +86,7 @@ class Gui {
 
     this.updateMesh();
     this.setVisibility(true);
+    GuiMobile.init(this);
 
     if (window.postprocessGui) window.postprocessGui();
   }

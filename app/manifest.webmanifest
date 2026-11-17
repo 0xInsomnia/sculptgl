@@ -1,0 +1,16 @@
+{
+  "name": "SculptGL",
+  "short_name": "SculptGL",
+  "description": "Digital sculpting in the browser, with phone controls and GLB/VRM characters.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#20211d",
+  "theme_color": "#20211d",
+  "icons": [
+    { "src": "resources/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "resources/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "resources/icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

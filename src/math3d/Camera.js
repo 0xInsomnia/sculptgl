@@ -306,6 +306,18 @@ class Camera {
     this.translateDelay(delta, DELAY_TRANSLATE);
   }
 
+  // Pinch: moves so the distance to the target is divided by `ratio`
+  // (fingers twice as far apart → twice as close), like a photo viewer.
+  pinch(ratio) {
+    if (!(ratio > 0)) return;
+    var delta = [0.0, 0.0, 0.0];
+    vec3.sub(delta, this._offset, this._trans);
+    vec3.scale(delta, delta, 1.0 - 1.0 / ratio);
+    if (ratio < 1.0)
+      delta[0] = delta[1] = 0.0;
+    this.setTrans(vec3.add(this._trans, this._trans, delta));
+  }
+
   setAndFocusOnPivot(pivot, zoom) {
     this.setPivot(pivot);
     this.moveToDelay(this._offset[0], this._offset[1], this._offset[2] + zoom);

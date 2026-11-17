@@ -2,6 +2,7 @@ import TR from 'gui/GuiTR';
 import { saveAs } from 'file-saver';
 import { zip } from 'zip';
 import Export from 'files/Export';
+import ExportGLB from 'files/ExportGLB';
 
 import Rtt from 'drawables/Rtt';
 import ShaderPaintUV from 'render/shaders/ShaderPaintUV';
@@ -34,6 +35,7 @@ class GuiFiles {
     // export
     menu.addTitle(TR('fileExportSceneTitle'));
     menu.addCheckbox(TR('fileExportAll'), this, '_exportAll');
+    menu.addButton(TR('fileExportGLB'), this, 'saveFileAsGLB');
     menu.addButton(TR('fileExportSGL'), this, 'saveFileAsSGL');
     menu.addButton(TR('fileExportOBJ'), this, 'saveFileAsOBJ' /*, 'CTRL+E'*/ );
     menu.addButton(TR('fileExportPLY'), this, 'saveFileAsPLY');
@@ -49,6 +51,28 @@ class GuiFiles {
     menu.addButton(TR('fileExportColor'), this, 'saveColor');
     menu.addButton(TR('fileExportRoughness'), this, 'saveRoughness');
     menu.addButton(TR('fileExportMetalness'), this, 'saveMetalness');
+  }
+
+  saveFileAsGLB() {
+    var main = this._main;
+    var source = main.getGLBSource();
+    if (!source) return window.alert(TR('fileExportGLBNone'));
+    main._action = Enums.Action.NOTHING;
+    main.getSculptManager().end();
+    var result = ExportGLB.exportGLB(main, source);
+    main.render();
+    var report = result.report;
+    if (!report.written.length) {
+      return window.alert(TR('fileExportGLBNothing') + '\n\n' + report.skipped.join('\n'));
+    }
+    var name = source.name.replace(/(\.[^.]*)?$/, function (ext) {
+      return '-sculpt' + (ext || '.glb');
+    });
+    saveAs(new Blob([result.bytes], { type: 'model/gltf-binary' }), name);
+    var lines = [TR('fileExportGLBDone') + ' ' + report.written.join(', ')];
+    if (report.multires.length) lines.push(TR('fileExportGLBMultires') + ' ' + report.multires.join(', '));
+    if (report.skipped.length) lines.push(TR('fileExportGLBSkipped') + '\n' + report.skipped.join('\n'));
+    if (lines.length > 1) window.alert(lines.join('\n\n'));
   }
 
   addFile() {

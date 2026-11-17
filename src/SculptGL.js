@@ -30,7 +30,8 @@ class SculptGL extends Scene {
     this._action = Enums.Action.NOTHING;
     this._lastNbPointers = 0;
     this._isWheelingIn = false;
-    this._oneFingerView = false; // touch: one finger turns the view instead of sculpting
+    this._oneFingerView = false;
+    this._touches = new Set(); // fingers currently on the canvas // touch: one finger turns the view instead of sculpting
 
     // masking
     this._maskX = 0;
@@ -52,6 +53,9 @@ class SculptGL extends Scene {
     // pointer
     canvas.addEventListener('pointerdown', cbOnPointer, false);
     canvas.addEventListener('pointermove', cbOnPointer, false);
+    var cbOnPointerEnd = this.onPointerEnd.bind(this);
+    window.addEventListener('pointerup', cbOnPointerEnd, true);
+    window.addEventListener('pointercancel', cbOnPointerEnd, true);
 
     // mouse
     canvas.addEventListener('mousedown', this.onMouseDown.bind(this), false);
@@ -79,6 +83,16 @@ class SculptGL extends Scene {
 
   onPointer(event) {
     Tablet.pressure = event.pressure;
+    if (event.type !== 'pointerdown' || event.pointerType === 'mouse') return;
+    // A finger landing alone starts a new gesture. Without this, after a
+    // pinch Hammer can leave the finger count at 2 and the next one-finger
+    // stroke turns the view instead of sculpting.
+    this._touches.add(event.pointerId);
+    if (this._touches.size === 1) this._lastNbPointers = 0;
+  }
+
+  onPointerEnd(event) {
+    this._touches.delete(event.pointerId);
   }
 
   initHammer() {
@@ -261,9 +275,13 @@ class SculptGL extends Scene {
   }
 
   onPinchInOut(e) {
-    var dir = (e.scale - this._lastScale) * 25;
+    // The old mapping (scale change × 25 wheel steps) zoomed far past the
+    // model with a normal pinch on a phone; follow the fingers instead.
+    var ratio = e.scale / this._lastScale;
     this._lastScale = e.scale;
-    this.onDeviceWheel(dir);
+    this._camera.pinch(ratio);
+    Multimesh.RENDER_HINT = Multimesh.CAMERA;
+    this.render();
   }
 
   resetCameraMeshes(meshes) {
@@ -292,6 +310,7 @@ class SculptGL extends Scene {
     if (lower.endsWith('.sgl')) return 'sgl';
     if (lower.endsWith('.stl')) return 'stl';
     if (lower.endsWith('.ply')) return 'ply';
+    if (lower.endsWith('.glb') || lower.endsWith('.vrm')) return 'glb';
     return;
   }
 
@@ -314,7 +333,7 @@ class SculptGL extends Scene {
     var reader = new FileReader();
     var self = this;
     reader.onload = function (evt) {
-      self.loadScene(evt.target.result, fileType);
+      self.loadScene(evt.target.result, fileType, file.name);
       document.getElementById('fileopen').value = '';
     };
 

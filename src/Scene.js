@@ -19,6 +19,7 @@ import ShaderLib from 'render/ShaderLib';
 import MeshStatic from 'mesh/meshStatic/MeshStatic';
 import WebGLCaps from 'render/WebGLCaps';
 import GuiMobile from 'gui/GuiMobile';
+import ImportGLB from 'files/ImportGLB';
 
 class Scene {
 
@@ -100,7 +101,7 @@ class Scene {
 
     var modelURL = getOptionsURL().modelurl;
     if (modelURL) this.addModelURL(modelURL);
-    else this.addSphere();
+    else this._startSphere = this.addSphere();
   }
 
   addModelURL(url) {
@@ -557,9 +558,20 @@ class Scene {
     return mesh;
   }
 
-  loadScene(fileData, fileType) {
+  loadScene(fileData, fileType, fileName) {
     var newMeshes;
-    if (fileType === 'obj') newMeshes = Import.importOBJ(fileData, this._gl);
+    var glb = null;
+    if (fileType === 'glb') {
+      try {
+        glb = ImportGLB.importGLB(fileData, this._gl);
+      } catch (error) {
+        console.error(error);
+        window.alert('GLB/VRM: ' + error.message);
+        return;
+      }
+      newMeshes = glb.meshes;
+      this._dropStartSphere();
+    } else if (fileType === 'obj') newMeshes = Import.importOBJ(fileData, this._gl);
     else if (fileType === 'sgl') newMeshes = Import.importSGL(fileData, this._gl, this);
     else if (fileType === 'stl') newMeshes = Import.importSTL(fileData, this._gl);
     else if (fileType === 'ply') newMeshes = Import.importPLY(fileData, this._gl);
@@ -570,26 +582,76 @@ class Scene {
     }
 
     var meshes = this._meshes;
-    for (var i = 0; i < nbNewMeshes; ++i) {
-      var mesh = newMeshes[i] = new Multimesh(newMeshes[i]);
+    // GLB/VRM vertices must keep their order to be written back into the
+    // original file, so the cache-friendly reordering is skipped for them.
+    var optimize = Mesh.OPTIMIZE;
+    if (glb) Mesh.OPTIMIZE = false;
+    try {
+      for (var i = 0; i < nbNewMeshes; ++i) {
+        var mesh = newMeshes[i] = new Multimesh(newMeshes[i]);
 
-      if (!this._vertexSRGB && mesh.getColors()) {
-        Utils.convertArrayVec3toSRGB(mesh.getColors());
+        if (!this._vertexSRGB && mesh.getColors() && !glb) {
+          Utils.convertArrayVec3toSRGB(mesh.getColors());
+        }
+
+        mesh.init();
+        mesh.initRender();
+        meshes.push(mesh);
       }
-
-      mesh.init();
-      mesh.initRender();
-      meshes.push(mesh);
+    } finally {
+      Mesh.OPTIMIZE = optimize;
     }
 
-    if (this._autoMatrix) {
+    if (this._autoMatrix || glb) {
       this.normalizeAndCenterMeshes(newMeshes);
     }
+    if (glb) this._registerGLB(glb, newMeshes, fileName);
 
     this._stateManager.pushStateAdd(newMeshes);
     this.setMesh(meshes[meshes.length - 1]);
     this.resetCameraMeshes(newMeshes);
+    if (glb && glb.facing < 0) this._camera.resetViewBack(); // look at the face, not the back
     return newMeshes;
+  }
+
+  // Opening a character on top of the untouched start-up sphere would bury
+  // it inside the sphere: drop the sphere if nothing was done yet.
+  _dropStartSphere() {
+    var sphere = this._startSphere;
+    this._startSphere = null;
+    if (!sphere || this._meshes.length !== 1 || this._meshes[0] !== sphere) return;
+    if (this._stateManager._undos.length > 1) return;
+    this._stateManager.reset();
+    this._meshes.length = 0;
+    this.setMesh(null);
+  }
+
+  // Keeps what is needed to write the sculpt back into the original file.
+  _registerGLB(glb, newMeshes, fileName) {
+    var main = this;
+    glb.entries.forEach(function (entry, i) {
+      var mesh = newMeshes[i];
+      entry.mesh = mesh;
+      entry.id = mesh.getID();
+      entry.faceHash = ImportGLB.hashFaces(mesh.getFaces(), mesh.getNbFaces() * 4);
+      entry.sceneMatrix = mat4.clone(mesh.getMatrix());
+      // characters are modelled facing forward around x = 0: mirror there,
+      // not around the middle of each separate piece (hair, clothes...)
+      var radius = mesh.computeLocalRadius();
+      if (radius > 0) mesh.setSymmetryOffset(-mesh.getCenter()[0] / radius);
+    });
+    glb.name = fileName || 'model.glb';
+    this._glbSource = glb;
+    ImportGLB.paintTextures(glb, function (entry) {
+      entry.mesh.updateDuplicateColorsAndMaterials();
+      entry.mesh.updateColorBuffer();
+      main.render();
+    });
+    if (glb.notes.length) console.warn('GLB import:\n' + glb.notes.join('\n'));
+  }
+
+  getGLBSource() {
+    return this._glbSource || null;
   }
 
   clearScene() {

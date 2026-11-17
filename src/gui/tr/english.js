@@ -225,7 +225,13 @@ var TR = {
   mobileTools: 'Tools',
   mobileUndo: 'Undo',
   mobileRedo: 'Redo',
-  mobileView: 'Turn view'
+  mobileView: 'Turn view',
+
+  // empty scene
+  welcomeTitle: "Open a model",
+  welcomeFormats: "GLB, VRM, OBJ, STL, PLY or SGL — or drop the file here.",
+  welcomeOpen: "Open file",
+  welcomeSphere: "Start from a sphere"
 };
 
 export default TR;

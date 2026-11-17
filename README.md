@@ -27,6 +27,7 @@ Changes made for sculpting characters on a phone:
 - **Install as an app**: served over https (e.g. GitHub Pages, see
   `.github/workflows/pages.yml`) it can be added to the home screen and works
   offline after the first visit.
+- Starts with an empty scene and an "Open a model" card instead of a sphere.
 - Builds with current Node (webpack 5.112).
 
 

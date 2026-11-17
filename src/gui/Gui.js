@@ -12,6 +12,7 @@ import GuiSculpting from 'gui/GuiSculpting';
 import GuiStates from 'gui/GuiStates';
 import GuiTablet from 'gui/GuiTablet';
 import GuiMobile from 'gui/GuiMobile';
+import GuiWelcome from 'gui/GuiWelcome';
 import ShaderContour from 'render/shaders/ShaderContour';
 
 import Export from 'files/Export';
@@ -87,6 +88,7 @@ class Gui {
     this.updateMesh();
     this.setVisibility(true);
     GuiMobile.init(this);
+    GuiWelcome.init(this);
 
     if (window.postprocessGui) window.postprocessGui();
   }
@@ -180,6 +182,7 @@ class Gui {
     this._ctrlSculpting.updateMesh();
     this._ctrlScene.updateMesh();
     this.updateMeshInfo();
+    GuiWelcome.update(this);
   }
 
   updateMeshInfo() {

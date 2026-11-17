@@ -101,7 +101,6 @@ class Scene {
 
     var modelURL = getOptionsURL().modelurl;
     if (modelURL) this.addModelURL(modelURL);
-    else this._startSphere = this.addSphere();
   }
 
   addModelURL(url) {
@@ -570,7 +569,6 @@ class Scene {
         return;
       }
       newMeshes = glb.meshes;
-      this._dropStartSphere();
     } else if (fileType === 'obj') newMeshes = Import.importOBJ(fileData, this._gl);
     else if (fileType === 'sgl') newMeshes = Import.importSGL(fileData, this._gl, this);
     else if (fileType === 'stl') newMeshes = Import.importSTL(fileData, this._gl);
@@ -612,18 +610,6 @@ class Scene {
     this.resetCameraMeshes(newMeshes);
     if (glb && glb.facing < 0) this._camera.resetViewBack(); // look at the face, not the back
     return newMeshes;
-  }
-
-  // Opening a character on top of the untouched start-up sphere would bury
-  // it inside the sphere: drop the sphere if nothing was done yet.
-  _dropStartSphere() {
-    var sphere = this._startSphere;
-    this._startSphere = null;
-    if (!sphere || this._meshes.length !== 1 || this._meshes[0] !== sphere) return;
-    if (this._stateManager._undos.length > 1) return;
-    this._stateManager.reset();
-    this._meshes.length = 0;
-    this.setMesh(null);
   }
 
   // Keeps what is needed to write the sculpt back into the original file.

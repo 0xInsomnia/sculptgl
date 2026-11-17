@@ -263,3 +263,48 @@ html, body {
   font-size: 15px;
   min-height: 36px;
 }
+
+/* ------------------------------------------------- empty scene */
+.sgl-welcome {
+  position: fixed;
+  left: 50%;
+  top: 45%;
+  transform: translate(-50%, -50%);
+  z-index: 2;
+  width: min(86vw, 360px);
+  padding: 22px 20px 20px;
+  border-radius: 18px;
+  background: rgba(20, 21, 18, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #eee;
+  font: 15px 'Open Sans', system-ui, sans-serif;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sgl-welcome[hidden] {
+  display: none;
+}
+
+.sgl-welcome h1 {
+  margin: 0;
+  font-size: 21px;
+  font-weight: 600;
+}
+
+.sgl-welcome p {
+  margin: 0 0 6px;
+  color: #b9b9b0;
+  line-height: 1.45;
+}
+
+.sgl-welcome .sgl-btn {
+  width: 100%;
+}
+
+.sgl-btn.sgl-primary {
+  background: #4f7f8c;
+  border-color: #9cd3e0;
+}

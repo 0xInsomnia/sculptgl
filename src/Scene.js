@@ -557,7 +557,9 @@ class Scene {
     return mesh;
   }
 
-  loadScene(fileData, fileType, fileName) {
+  // restoring: replace the whole scene with a fresh copy of the last file
+  // opened, as one undoable step (see restoreOriginal).
+  loadScene(fileData, fileType, fileName, restoring) {
     var newMeshes;
     var glb = null;
     if (fileType === 'glb') {
@@ -579,7 +581,9 @@ class Scene {
       return;
     }
 
+    if (!restoring) this._lastFile = { data: fileData, type: fileType, name: fileName };
     var meshes = this._meshes;
+    var removed = restoring ? meshes.splice(0) : null;
     // GLB/VRM vertices must keep their order to be written back into the
     // original file, so the cache-friendly reordering is skipped for them.
     var optimize = Mesh.OPTIMIZE;
@@ -603,9 +607,10 @@ class Scene {
     if (this._autoMatrix || glb) {
       this.normalizeAndCenterMeshes(newMeshes);
     }
-    if (glb) this._registerGLB(glb, newMeshes, fileName);
+    if (glb) this._registerGLB(glb, newMeshes, fileName, restoring);
 
-    this._stateManager.pushStateAdd(newMeshes);
+    if (removed) this._stateManager.pushStateAddRemove(newMeshes, removed);
+    else this._stateManager.pushStateAdd(newMeshes);
     this.setMesh(meshes[meshes.length - 1]);
     this.resetCameraMeshes(newMeshes);
     if (glb && glb.facing < 0) this._camera.resetViewBack(); // look at the face, not the back
@@ -613,7 +618,7 @@ class Scene {
   }
 
   // Keeps what is needed to write the sculpt back into the original file.
-  _registerGLB(glb, newMeshes, fileName) {
+  _registerGLB(glb, newMeshes, fileName, restoring) {
     var main = this;
     glb.entries.forEach(function (entry, i) {
       var mesh = newMeshes[i];
@@ -627,13 +632,26 @@ class Scene {
       if (radius > 0) mesh.setSymmetryOffset(-mesh.getCenter()[0] / radius);
     });
     glb.name = fileName || 'model.glb';
+    // Undoing a restore brings the previous meshes back: keep their entries.
+    var previous = this._glbSource;
+    if (restoring && previous) glb.entries = previous.entries.concat(glb.entries);
     this._glbSource = glb;
-    ImportGLB.paintTextures(glb, function (entry) {
+    ImportGLB.paintTextures({ gltf: glb.gltf, entries: glb.entries.slice(-newMeshes.length) }, function (entry) {
       entry.mesh.updateDuplicateColorsAndMaterials();
       entry.mesh.updateColorBuffer();
       main.render();
     });
     if (glb.notes.length) console.warn('GLB import:\n' + glb.notes.join('\n'));
+  }
+
+  // Back to the file as it was opened. Returns false when nothing was opened.
+  restoreOriginal() {
+    var file = this._lastFile;
+    if (!file) return false;
+    this._action = Enums.Action.NOTHING;
+    this._sculptManager.end();
+    this.loadScene(file.data, file.type, file.name, true);
+    return true;
   }
 
   getGLBSource() {

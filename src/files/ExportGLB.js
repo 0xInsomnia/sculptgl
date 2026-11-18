@@ -73,14 +73,26 @@ Export.exportGLB = function (main, source) {
   var data = new DataView(bin.buffer, bin.byteOffset, bin.byteLength);
   var report = { written: [], skipped: [], multires: [] };
   var meshes = main.getMeshes();
+  var find = function (entry) {
+    for (var i = 0; i < meshes.length; ++i) {
+      if (meshes[i].getID() === entry.id) return meshes[i];
+    }
+    return null;
+  };
+  // After "restore original" (and its undo) several entries can point at
+  // the same part of the file: the one still in the scene is the one used.
+  var present = {};
+  source.entries.forEach(function (entry) {
+    if (find(entry)) present[entry.position] = true;
+  });
 
   source.entries.forEach(function (entry) {
-    var mesh = null;
-    for (var i = 0; i < meshes.length; ++i) {
-      if (meshes[i].getID() === entry.id) mesh = meshes[i];
-    }
+    var mesh = find(entry);
     if (!mesh) {
-      report.skipped.push(entry.name + ': removed from the scene');
+      if (!present[entry.position]) {
+        present[entry.position] = true;
+        report.skipped.push(entry.name + ': removed from the scene');
+      }
       return;
     }
 

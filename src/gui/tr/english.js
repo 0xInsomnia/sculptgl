@@ -152,6 +152,8 @@ var TR = {
   stateTitle: 'History',
   stateUndo: 'Undo',
   stateRedo: 'Redo',
+  stateRestore: "Restore original",
+  stateRestoreNone: "Nothing to restore: open a file first.",
   stateMaxStack: 'Max Stack',
 
   // pressure

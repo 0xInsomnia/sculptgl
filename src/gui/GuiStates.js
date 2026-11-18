@@ -15,15 +15,22 @@ class GuiTablet {
     var menu = this._menu = guiParent.addMenu(TR('stateTitle'));
     menu.addButton(TR('stateUndo'), this, 'onUndo', 'CTRL+Z');
     menu.addButton(TR('stateRedo'), this, 'onRedo', 'CTRL+Y');
+    menu.addButton(TR('stateRestore'), this, 'onRestore');
     menu.addTitle(TR('stateMaxStack'));
     var states = this._main.getStateManager();
-    menu.addSlider('', StateManager.STACK_LENGTH, states.setNewMaxStack.bind(states), 3, 50, 1);
+    menu.addSlider('', StateManager.STACK_LENGTH, states.setNewMaxStack.bind(states), 3, 200, 1);
   }
 
   onUndo() {
     this._main._action = Enums.Action.NOTHING;
     this._main.getSculptManager().end(); // abort current sculpting operation
     this._main.getStateManager().undo();
+    this._main.render();
+    this._ctrlGui.updateMesh();
+  }
+
+  onRestore() {
+    if (!this._main.restoreOriginal()) return window.alert(TR('stateRestoreNone'));
     this._main.render();
     this._ctrlGui.updateMesh();
   }

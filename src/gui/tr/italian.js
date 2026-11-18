@@ -149,9 +149,11 @@ var TR = {
   sculptExtractAction: 'Estrai !',
 
   // states
-  stateTitle: 'Story',
+  stateTitle: 'Cronologia',
   stateUndo: 'Indietro',
   stateRedo: 'Avanti',
+  stateRestore: "Ripristina originale",
+  stateRestoreNone: "Niente da ripristinare: apri prima un file.",
   stateMaxStack: 'Pila massima',
 
   // pressure

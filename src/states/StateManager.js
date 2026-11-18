@@ -138,6 +138,7 @@ class StateManager {
   }
 }
 
-StateManager.STACK_LENGTH = 15;
+// Each step keeps only the vertices it changed, so a long history is cheap.
+StateManager.STACK_LENGTH = 100;
 
 export default StateManager;

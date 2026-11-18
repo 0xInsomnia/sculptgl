@@ -29,6 +29,7 @@ class GuiFiles {
     // import
     menu.addTitle(TR('fileImportTitle'));
     menu.addButton(TR('fileAdd'), this, 'addFile' /*, 'CTRL+O/I'*/ );
+    menu.addButton(TR('stateRestore'), this, 'onRestore');
     menu.addCheckbox(TR('fileAutoMatrix'), this._main, '_autoMatrix');
     menu.addCheckbox(TR('fileVertexSRGB'), this._main, '_vertexSRGB');
 
@@ -51,6 +52,12 @@ class GuiFiles {
     menu.addButton(TR('fileExportColor'), this, 'saveColor');
     menu.addButton(TR('fileExportRoughness'), this, 'saveRoughness');
     menu.addButton(TR('fileExportMetalness'), this, 'saveMetalness');
+  }
+
+  onRestore() {
+    if (!this._main.restoreOriginal()) return window.alert(TR('stateRestoreNone'));
+    this._main.render();
+    this._ctrlGui.updateMesh();
   }
 
   saveFileAsGLB() {

@@ -229,6 +229,23 @@ var TR = {
   mobileRedo: 'Ripeti',
   mobileView: 'Ruota vista',
 
+  // view column and pieces sheet
+  viewZoomIn: "Avvicina",
+  viewZoomOut: "Allontana",
+  viewFrame: "Vista di fronte, modello intero",
+  viewTurn: "Gira di un quarto",
+  piecesTitle: "Pezzi",
+  piecesClose: "Chiudi",
+  piecesAll: "Seleziona tutti",
+  piecesNone: "Deseleziona tutti",
+  piecesOnly: "Solo questo",
+  piecesEditable: "Si può scolpire",
+  piecesVisible: "Visibile",
+  piecesUnnamed: "Pezzo",
+  piecesEmpty: "Apri prima un modello.",
+  piecesHelp: "✎ = gli strumenti lo modificano, 👁 = visibile. I pezzi deselezionati sono protetti e appaiono più scuri.",
+  hintClose: "Tocca per nascondere i suggerimenti",
+
   // touch pen and per-tool hints
   penGlow: "Zona di luce sul modello",
   penLockedPiece: "pezzo scelto",

@@ -15,7 +15,7 @@ var GuiPen = {
     hand: 'right', // the tip goes on the other side of the hand
     distance: 75, // CSS pixels between finger and tip
     aim: true, // aim first, start sculpting after holding still
-    hold: 350, // milliseconds to hold still before sculpting starts
+    hold: 1000, // milliseconds to hold still before sculpting starts
     glow: true // light zone on the model under the brush
   }
 };
@@ -28,7 +28,8 @@ try {
     if (saved.hand === 'left' || saved.hand === 'right') s.hand = saved.hand;
     if (saved.distance >= 30 && saved.distance <= 160) s.distance = saved.distance;
     if (typeof saved.aim === 'boolean') s.aim = saved.aim;
-    if (saved.hold >= 150 && saved.hold <= 900) s.hold = saved.hold;
+    // version 2: the default hold went from 0.35 s to 1 s, older saves keep theirs only if longer
+    if (saved.hold >= 150 && saved.hold <= 2000 && (saved.version >= 2 || saved.hold >= 1000)) s.hold = saved.hold;
     if (typeof saved.glow === 'boolean') s.glow = saved.glow;
   }
 } catch (e) {
@@ -39,7 +40,7 @@ BrushGlow.enabled = GuiPen.settings.glow;
 
 GuiPen.save = function () {
   try {
-    window.localStorage.setItem(STORAGE, JSON.stringify(GuiPen.settings));
+    window.localStorage.setItem(STORAGE, JSON.stringify(Object.assign({ version: 2 }, GuiPen.settings)));
   } catch (e) {
     // not critical
   }
@@ -147,12 +148,11 @@ GuiPen.initMenu = function (sidebar, main) {
   menu.addSlider(TR('penHold'), s.hold, function (value) {
     s.hold = value;
     GuiPen.save();
-  }, 150, 900, 10);
+  }, 150, 2000, 50);
   menu.addCheckbox(TR('penGlow'), s.glow, function (value) {
     s.glow = BrushGlow.enabled = value;
     GuiPen.save();
   });
-  menu.addCheckbox(TR('penLock'), main, '_lockMesh');
   return menu;
 };
 

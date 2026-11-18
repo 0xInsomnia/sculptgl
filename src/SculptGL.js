@@ -32,10 +32,9 @@ class SculptGL extends Scene {
     this._action = Enums.Action.NOTHING;
     this._lastNbPointers = 0;
     this._isWheelingIn = false;
-    this._oneFingerView = false;
+    this._oneFingerView = false; // touch: one finger turns the view instead of sculpting
     this._touches = new Set(); // fingers currently on the canvas
     this._pen = null; // one-finger stroke driven by the offset pen (see _penDown)
-    this._lockMesh = false; // sculpt only the selected mesh // touch: one finger turns the view instead of sculpting
 
     // masking
     this._maskX = 0;
@@ -239,7 +238,6 @@ class SculptGL extends Scene {
     if (!pen || pen.mode === 'view') return GuiPen.show(null, null, null);
     var progress = Math.min(1, (performance.now() - pen.since) / GuiPen.settings.hold);
     var picked = this._picking.getMesh();
-    if (picked) this._penPiece = picked; // the lock button locks the piece last aimed at
     this._penGlow();
     GuiPen.show(pen.finger, pen.tip, pen.mode, progress, pen.direction, picked ? picked.__sglName : '');
   }

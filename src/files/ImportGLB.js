@@ -247,6 +247,16 @@ function buildMesh(gltf, gl, primitives, position, matrix) {
     if (cell.image !== null) {
       s = uv[vertex * 2];
       t = uv[vertex * 2 + 1];
+      var tr = cell.transform;
+      if (tr) {
+        var scale = tr.scale || [1, 1];
+        var offset = tr.offset || [0, 0];
+        var rotation = tr.rotation || 0;
+        var x0 = s * scale[0];
+        var y0 = t * scale[1];
+        s = Math.cos(rotation) * x0 + Math.sin(rotation) * y0 + offset[0];
+        t = -Math.sin(rotation) * x0 + Math.cos(rotation) * y0 + offset[1];
+      }
       if (s < 0 || s > 1) s -= Math.floor(s); // tiling cannot cross cells
       if (t < 0 || t > 1) t -= Math.floor(t);
     }
@@ -324,10 +334,12 @@ function atlasLayout(gltf, primitives, hasUV) {
       if (source !== undefined && json.images[source] && json.images[source].bufferView !== undefined) image = source;
     }
     var mode = material.alphaMode || 'OPAQUE';
-    var key = image + '|' + factor.join(',') + '|' + mode;
+    // KHR_texture_transform (VRM uses it e.g. for the irises)
+    var transform = image !== null && info.extensions && info.extensions.KHR_texture_transform || null;
+    var key = image + '|' + factor.join(',') + '|' + mode + '|' + JSON.stringify(transform);
     if (keys[key] === undefined) {
       keys[key] = slots.length;
-      slots.push({ image: image, factor: factor, opaque: mode === 'OPAQUE' });
+      slots.push({ image: image, factor: factor, opaque: mode === 'OPAQUE', transform: transform });
     }
     return keys[key];
   });
@@ -344,6 +356,21 @@ function atlasLayout(gltf, primitives, hasUV) {
 
 // Roughness and metalness from the material: glossy defaults made skin and
 // cloth look dark and plastic.
+// Toon / unlit materials (VRM's MToon, KHR_materials_unlit) are flat
+// colour, not metal; their PBR fields are often left out, and glTF's
+// default for a missing metalness is "fully metallic", which drew those
+// characters dark with black eyes.
+function isMatte(json, index) {
+  var material = (json.materials && json.materials[index]) || {};
+  var ext = material.extensions || {};
+  if (ext.KHR_materials_unlit || ext.VRMC_materials_mtoon) return true;
+  var vrm = json.extensions && json.extensions.VRM;
+  if (vrm) return true; // VRM 0.x: every material is drawn by its own toon shader
+  var pbr = material.pbrMetallicRoughness || {};
+  // no metalness given and no metal map: treat as "not set", not as metal
+  return pbr.metallicFactor === undefined && !pbr.metallicRoughnessTexture;
+}
+
 function baseMaterials(gltf, primitives, owner, weldOf, nbWelded) {
   var json = gltf.json;
   var materials = new Float32Array(nbWelded * 3);
@@ -354,10 +381,16 @@ function baseMaterials(gltf, primitives, owner, weldOf, nbWelded) {
   for (var v = 0; v < owner.length; ++v) {
     var w = weldOf[v];
     if (w < 0) continue;
-    var material = (json.materials && json.materials[primitives[owner[v]].material]) || {};
+    var index = primitives[owner[v]].material;
+    var material = (json.materials && json.materials[index]) || {};
     var pbr = material.pbrMetallicRoughness || {};
-    materials[w * 3] = pbr.roughnessFactor === undefined ? 1.0 : pbr.roughnessFactor;
-    materials[w * 3 + 1] = pbr.metallicFactor === undefined ? 1.0 : pbr.metallicFactor;
+    if (isMatte(json, index)) {
+      materials[w * 3] = 0.9;
+      materials[w * 3 + 1] = 0.0;
+    } else {
+      materials[w * 3] = pbr.roughnessFactor === undefined ? 1.0 : pbr.roughnessFactor;
+      materials[w * 3 + 1] = pbr.metallicFactor;
+    }
   }
   return materials;
 }

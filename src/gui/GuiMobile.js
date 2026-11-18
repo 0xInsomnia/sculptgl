@@ -2,6 +2,7 @@ import TR from 'gui/GuiTR';
 import Tools from 'editing/tools/Tools';
 import GuiSculptingTools from 'gui/GuiSculptingTools';
 import GuiPen from 'gui/GuiPen';
+import GuiPieces from 'gui/GuiPieces';
 
 // Phone and tablet layer on top of the desktop interface:
 // - on narrow screens the top menu and the right panel become drawers, so
@@ -209,22 +210,51 @@ function setupQuickBar(gui, drawers) {
     sculpting._ctrlSymmetry.setValue(!manager._symmetry);
     sync(true);
   });
+  var pieces = button('🧩', TR('piecesTitle'), function () {
+    GuiPieces.toggle(main);
+  });
+
+  [undo, redo, tool, negative, symmetry, pieces].forEach(function (node) {
+    buttons.appendChild(node);
+  });
+
+  // View column on the left edge: one-finger view mode, zoom, frame, turn.
+  var camera = main.getCamera();
+  var view = el('div', 'sgl-view');
   var look = button('✋', TR('mobileView'), function () {
     main._oneFingerView = !main._oneFingerView;
     sync(true);
   });
-  var lock = button('🔒', TR('penLock'), function () {
-    main._lockMesh = !main._lockMesh;
-    // aim at a piece with the pen, then press the lock: that piece is kept
-    if (main._lockMesh && main._penPiece && main.getMeshes().indexOf(main._penPiece) >= 0) main.setMesh(main._penPiece);
-    sync(true);
+  var zoomIn = button('＋', TR('viewZoomIn'), function () {
+    camera.pinch(1.3);
+    main.render();
   });
-
-  [undo, redo, tool, negative, symmetry, lock, look].forEach(function (node) {
-    buttons.appendChild(node);
+  var zoomOut = button('－', TR('viewZoomOut'), function () {
+    camera.pinch(1 / 1.3);
+    main.render();
   });
+  var frame = button('⤢', TR('viewFrame'), function () {
+    camera.setViewAngles(0, main._frontYaw || 0);
+    main.resetCameraMeshes();
+  });
+  var turn = button('⟲', TR('viewTurn'), function () {
+    // next quarter turn around the model, from the front
+    var front = main._frontYaw || 0;
+    var steps = Math.round((camera.getViewAngles()[1] - front) / (Math.PI / 2)) + 1;
+    camera.setViewAngles(0, front + steps * Math.PI / 2);
+    main.render();
+  });
+  [look, zoomIn, zoomOut, frame, turn].forEach(function (node) {
+    view.appendChild(node);
+  });
+  document.body.appendChild(view);
   // what the finger should do with the current tool
   var hint = el('p', 'sgl-hint');
+  hint.title = TR('hintClose');
+  hint.addEventListener('click', function () {
+    main._hideHints = true;
+    sync(true);
+  });
 
   var radius = range(label('sculptRadius'), 5, 300, function (val) {
     var widget = GuiTools[manager.getToolIndex()];
@@ -251,7 +281,7 @@ function setupQuickBar(gui, drawers) {
     var widget = GuiTools[index] || {};
     var selected = main.getMesh();
     var state = [index, current._negative, manager._symmetry, main._oneFingerView,
-      current._radius, current._intensity, main._lockMesh, selected && selected.getID()].join();
+      current._radius, current._intensity, selected && selected.getID()].join();
     if (!force && state === last) return;
     last = state;
     tool.value = index;
@@ -260,11 +290,8 @@ function setupQuickBar(gui, drawers) {
     symmetry.setAttribute('aria-pressed', !!manager._symmetry);
     symmetry.hidden = !sculpting._ctrlSymmetry.domContainer || sculpting._ctrlSymmetry.domContainer.hidden;
     look.setAttribute('aria-pressed', !!main._oneFingerView);
-    lock.setAttribute('aria-pressed', !!main._lockMesh);
-    lock.textContent = main._lockMesh ? '🔒' : '🔓';
-    var piece = main._lockMesh && selected ? '🔒 ' + (selected.__sglName || TR('penLockedPiece')) + ' · ' : '';
-    hint.textContent = piece + TR(GuiPen.hintKeys[index]);
-    look.textContent = main._oneFingerView ? '✋ ' + TR('mobileView') : '✋';
+    hint.textContent = TR(GuiPen.hintKeys[index]);
+    hint.hidden = !!main._hideHints;
     radius.wrap.hidden = !widget._ctrlRadius;
     intensity.wrap.hidden = !widget._ctrlIntensity;
     if (widget._ctrlRadius) {
@@ -286,9 +313,10 @@ GuiMobile.init = function (gui) {
     GuiMobile._shim = true;
   }
   // initGui can run again (language change): keep one quick bar.
-  var old = document.querySelectorAll('.sgl-top, .sgl-bar, .sgl-backdrop');
+  var old = document.querySelectorAll('.sgl-top, .sgl-bar, .sgl-backdrop, .sgl-view');
   for (var i = 0; i < old.length; ++i) old[i].remove();
   if (GuiMobile._timer) window.clearInterval(GuiMobile._timer);
+  GuiPieces.init(gui);
   var sync = setupQuickBar(gui, setupDrawers(gui));
   GuiMobile._timer = window.setInterval(sync, 300);
 };

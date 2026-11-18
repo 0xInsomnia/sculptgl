@@ -399,3 +399,115 @@ html, body {
   line-height: 1.35;
   pointer-events: none;
 }
+
+/* ------------------------------------------------- view column */
+.sgl-view {
+  display: none;
+}
+
+.sgl-touch .sgl-view {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: fixed;
+  z-index: 3;
+  left: max(8px, env(safe-area-inset-left));
+  top: 50%;
+  transform: translateY(-62%);
+}
+
+.sgl-view .sgl-btn {
+  min-width: 44px;
+  padding: 0;
+}
+
+/* ------------------------------------------------- pieces sheet */
+.sgl-pieces {
+  position: fixed;
+  z-index: 6;
+  left: max(8px, env(safe-area-inset-left));
+  right: max(8px, env(safe-area-inset-right));
+  bottom: max(8px, env(safe-area-inset-bottom));
+  max-width: 520px;
+  margin: 0 auto;
+  max-height: 70vh;
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  border-radius: 16px;
+  background: rgba(20, 21, 18, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #eee;
+  font: 15px 'Open Sans', system-ui, sans-serif;
+}
+
+.sgl-pieces[hidden] {
+  display: none;
+}
+
+.sgl-pieces-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sgl-pieces h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.sgl-pieces-help {
+  margin: 6px 0 10px;
+  color: #b9b9b0;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.sgl-pieces-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.sgl-pieces-actions .sgl-btn {
+  flex: 1;
+}
+
+.sgl-piece {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto;
+  gap: 10px;
+  align-items: center;
+  min-height: 46px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.sgl-piece-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sgl-piece-toggle {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 16px;
+}
+
+.sgl-piece-toggle input {
+  width: 22px;
+  height: 22px;
+  accent-color: #9cd3e0;
+}
+
+.sgl-btn.sgl-small {
+  min-height: 36px;
+  font-size: 14px;
+  padding: 0 10px;
+}
+
+.sgl-hint {
+  pointer-events: auto;
+  cursor: pointer;
+}

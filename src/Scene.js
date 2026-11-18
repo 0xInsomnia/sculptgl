@@ -613,7 +613,11 @@ class Scene {
     else this._stateManager.pushStateAdd(newMeshes);
     this.setMesh(meshes[meshes.length - 1]);
     this.resetCameraMeshes(newMeshes);
-    if (glb && glb.facing < 0) this._camera.resetViewBack(); // look at the face, not the back
+    // look at the face, not the back; remember where the front is for the view buttons
+    if (glb) {
+      this._frontYaw = glb.facing < 0 ? Math.PI : 0;
+      this._camera.setViewAngles(0, this._frontYaw);
+    }
     return newMeshes;
   }
 

@@ -154,9 +154,10 @@ class Picking {
   /** Intersection between a ray the mouse position for every meshes */
   intersectionMouseMeshes(meshes, mouseX = this._main._mouseX, mouseY = this._main._mouseY) {
     if (meshes === undefined) {
-      // "lock piece": only the selected mesh can be sculpted
-      var main = this._main;
-      meshes = main._lockMesh && main.getMesh() ? [main.getMesh()] : main.getMeshes();
+      // pieces switched off in the Pieces sheet cannot be sculpted
+      meshes = this._main.getMeshes().filter(function (mesh) {
+        return !mesh.__frozen;
+      });
     }
 
     var vNear = this.unproject(mouseX, mouseY, 0.0);

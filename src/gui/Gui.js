@@ -14,6 +14,7 @@ import GuiTablet from 'gui/GuiTablet';
 import GuiMobile from 'gui/GuiMobile';
 import GuiWelcome from 'gui/GuiWelcome';
 import GuiPen from 'gui/GuiPen';
+import GuiPieces from 'gui/GuiPieces';
 import ShaderContour from 'render/shaders/ShaderContour';
 
 import Export from 'files/Export';
@@ -185,6 +186,7 @@ class Gui {
     this._ctrlScene.updateMesh();
     this.updateMeshInfo();
     GuiWelcome.update(this);
+    if (this._main.getMeshes) GuiPieces.update(this._main);
   }
 
   updateMeshInfo() {

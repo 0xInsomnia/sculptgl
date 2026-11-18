@@ -229,6 +229,23 @@ var TR = {
   mobileRedo: 'Redo',
   mobileView: 'Turn view',
 
+  // view column and pieces sheet
+  viewZoomIn: "Zoom in",
+  viewZoomOut: "Zoom out",
+  viewFrame: "Front view, whole model",
+  viewTurn: "Turn a quarter around",
+  piecesTitle: "Pieces",
+  piecesClose: "Close",
+  piecesAll: "Select all",
+  piecesNone: "Deselect all",
+  piecesOnly: "Only this",
+  piecesEditable: "Can be sculpted",
+  piecesVisible: "Visible",
+  piecesUnnamed: "Piece",
+  piecesEmpty: "Open a model first.",
+  piecesHelp: "✎ = tools can change it, 👁 = shown. Deselected pieces are protected and drawn darker.",
+  hintClose: "Tap to hide the hints",
+
   // touch pen and per-tool hints
   penGlow: "Light zone on the model",
   penLockedPiece: "selected piece",

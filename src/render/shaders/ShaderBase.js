@@ -55,6 +55,7 @@ ShaderBase.strings.fragColorFunction = [
   'vec4 encodeFragColor(const in vec3 frag, const in float alpha) {',
   '  vec3 col = computeCurvature(vVertex, vNormal, frag, uCurvature, uFov);',
   '  if(uDarken == 1) col *= 0.3;',
+  '  else if(uDarken == 2) col *= 0.55;',
   '  col *= (0.3 + 0.7 * vMasking);',
   '  if(uSym == 1 && abs(dot(uPlaneN, vVertex - uPlaneO)) < 0.15)',
   '      col = min(col * 1.5, 1.0);',
@@ -160,7 +161,7 @@ ShaderBase.updateUniforms = (function () {
     gl.uniformMatrix4fv(uniforms.uMVP, false, mesh.getMVP());
     gl.uniformMatrix3fv(uniforms.uN, false, mesh.getN());
 
-    gl.uniform1i(uniforms.uDarken, darken ? 1 : 0);
+    gl.uniform1i(uniforms.uDarken, darken ? 1 : mesh.__frozen ? 2 : 0);
     gl.uniform1i(uniforms.uFlat, mesh.getFlatShading());
     gl.uniform3fv(uniforms.uPlaneO, vec3.transformMat4(tmp, mesh.getSymmetryOrigin(), mesh.getMV()));
     gl.uniform3fv(uniforms.uPlaneN, vec3.normalize(tmp, vec3.transformMat3(tmp, mesh.getSymmetryNormal(), mesh.getN())));

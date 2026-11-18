@@ -231,6 +231,22 @@ class Camera {
     quat.rotateY(qrt, qrt, this._rotY);
   }
 
+  // Turns the view to these orbit angles (radians), animated. Keeps the
+  // angles used by rotate() in step, so the next drag does not jump.
+  setViewAngles(rx, ry) {
+    var radLimit = Math.PI * 0.49;
+    this._rotX = Math.max(Math.min(rx, radLimit), -radLimit);
+    this._rotY = ry;
+    var target = quat.create();
+    quat.rotateX(target, target, this._rotX);
+    quat.rotateY(target, target, this._rotY);
+    this.quatDelay(target, DELAY_SNAP);
+  }
+
+  getViewAngles() {
+    return [this._rotX || 0, this._rotY || 0];
+  }
+
   getTransZ() {
     return this._projectionType === Enums.Projection.PERSPECTIVE ? this._trans[2] * 45 / this._fov : 1000.0;
   }

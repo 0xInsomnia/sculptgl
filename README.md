@@ -31,6 +31,14 @@ Changes made for sculpting characters on a phone:
   bar says what the finger should do with the current tool. *Lock piece*
   keeps strokes on one piece (e.g. not the hair while sculpting the neck).
   Settings in Tools → Touch pen.
+- **Zone + lever** (touch, top switch Brush / Zone): hold a finger still on
+  the model to fix a circle, oval or rectangle there (size and soft edge
+  adjustable), or draw a free outline. The zone is projected onto the model
+  from that view, only the surface facing you, and lights up. The lever on the
+  right applies the current tool: up raises / inflates / enlarges, down
+  lowers / deflates / shrinks; each push is one undo step.
+- **Pieces sheet**: select / deselect all, sculptable and visible per piece.
+- **View column**: one-finger view mode, zoom, front view, quarter turns.
 - **Real textures** of imported characters are shown while sculpting.
 - 100 undo steps (was 15) and *Restore original* (undoable).
 - **Install as an app**: served over https (e.g. GitHub Pages, see

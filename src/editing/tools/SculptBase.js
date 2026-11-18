@@ -431,6 +431,8 @@ class SculptBase {
   }
 
   postRender(selection) {
+    // in touch zone mode the zone has its own light: no brush circle
+    if (this._main._touchMode === 'zone' && document.body.classList.contains('sgl-touch')) return;
     selection.render(this._main);
   }
 

@@ -4,6 +4,8 @@ import { Manager as HammerManager, Pan, Pinch, Tap } from 'hammerjs';
 import Tablet from 'misc/Tablet';
 import GuiPen from 'gui/GuiPen';
 import BrushGlow from 'render/shaders/BrushGlow';
+import GuiZone from 'gui/GuiZone';
+import Zone from 'editing/Zone';
 import Enums from 'misc/Enums';
 import Utils from 'misc/Utils';
 import Scene from 'Scene';
@@ -92,6 +94,7 @@ class SculptGL extends Scene {
     if (event.pointerType === 'mouse') return;
     if (event.type === 'pointermove') {
       if (this._pen && event.pointerId === this._pen.id) this._penMove(event);
+      if (this._place && event.pointerId === this._place.id) this._zoneMove(event);
       return;
     }
     // no emulated mouse clicks after a touch: they sculpted a dot under the finger
@@ -102,15 +105,117 @@ class SculptGL extends Scene {
     this._touches.add(event.pointerId);
     if (this._touches.size === 1) {
       this._lastNbPointers = 0;
-      if (this._penAvailable()) this._penDown(event);
+      if (this._touchMode === 'zone' && this._meshes.length && !this._oneFingerView) this._zoneDown(event);
+      else if (this._penAvailable()) this._penDown(event);
     } else {
       this._penEnd(); // two fingers: view gestures take over
+      this._zoneCancel();
     }
   }
 
   onPointerEnd(event) {
     this._touches.delete(event.pointerId);
     if (this._pen && event.pointerId === this._pen.id) this._penEnd();
+    if (this._place && event.pointerId === this._place.id) this._zoneUp(event.type === 'pointerup');
+  }
+
+  ////////////////
+  // ZONE PLACING
+  ////////////////
+  // Zone mode (see editing/Zone.js): one finger held still on the model
+  // fixes the chosen shape there, centred under the finger; with the free
+  // shape the finger draws the outline. Off the model one finger turns the
+  // view. The lever (GuiZone) then edits the zone.
+  _zoneDown(event) {
+    var place = this._place = {
+      id: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      anchor: { x: event.clientX, y: event.clientY },
+      since: performance.now(),
+      points: [{ x: event.clientX, y: event.clientY }],
+      mode: null,
+      timer: 0
+    };
+    this._focusGui = false;
+    if (GuiZone.shape === 'lasso') {
+      place.mode = 'draw';
+      GuiZone.showPlacing({ points: place.points });
+      return;
+    }
+    this.setMousePosition({ pageX: place.x, pageY: place.y });
+    if (!this._picking.intersectionMouseMeshes()) {
+      place.mode = 'view';
+      this.onDeviceDown({ pageX: place.x, pageY: place.y, which: MOUSE_RIGHT });
+      return;
+    }
+    place.mode = 'aim';
+    place.timer = window.setInterval(this._zoneTick.bind(this), 30);
+    GuiZone.showPlacing({ x: place.x, y: place.y, progress: 0 });
+  }
+
+  _zoneTick() {
+    var place = this._place;
+    if (!place || place.mode !== 'aim') return;
+    var progress = Math.min(1, (performance.now() - place.since) / GuiZone.holdTime());
+    GuiZone.showPlacing({ x: place.x, y: place.y, progress: progress });
+    if (progress >= 1) this._zoneFix(GuiZone.spec(place.x, place.y));
+  }
+
+  _zoneMove(event) {
+    var place = this._place;
+    var x = event.clientX;
+    var y = event.clientY;
+    if (place.mode === 'view') {
+      this.onDeviceMove({ pageX: x, pageY: y });
+    } else if (place.mode === 'draw') {
+      var last = place.points[place.points.length - 1];
+      if (Math.abs(x - last.x) + Math.abs(y - last.y) > 4) place.points.push({ x: x, y: y });
+      GuiZone.showPlacing({ points: place.points });
+    } else if (place.mode === 'aim') {
+      // the outline follows the finger; moving restarts the hold
+      if (Math.abs(x - place.anchor.x) + Math.abs(y - place.anchor.y) > 10) {
+        place.anchor.x = x;
+        place.anchor.y = y;
+        place.since = performance.now();
+      }
+      GuiZone.showPlacing({ x: x, y: y, progress: Math.min(1, (performance.now() - place.since) / GuiZone.holdTime()) });
+    }
+    place.x = x;
+    place.y = y;
+  }
+
+  _zoneFix(spec) {
+    var place = this._place;
+    if (place) {
+      window.clearInterval(place.timer);
+      place.mode = 'done';
+    }
+    Zone.clear();
+    var zone = Zone.fix(this, spec, GuiZone.editable());
+    GuiZone.showPlacing(null);
+    GuiZone.sync();
+    if (zone && window.navigator.vibrate) window.navigator.vibrate(12);
+    this._picking.intersectionMouseMeshes([]); // no brush circle: the zone has its own light
+    this.render();
+  }
+
+  _zoneUp(lifted) {
+    var place = this._place;
+    if (!place) return;
+    if (lifted && place.mode === 'draw' && place.points.length >= 6) this._zoneFix(GuiZone.lassoSpec(place.points));
+    this._zoneCancel();
+  }
+
+  _zoneCancel() {
+    var place = this._place;
+    if (!place) return;
+    this._place = null;
+    window.clearInterval(place.timer);
+    if (place.mode === 'view') this.onDeviceUp();
+    this._picking.intersectionMouseMeshes([]);
+    this.render();
+    GuiZone.showPlacing(null);
   }
 
   ////////////////
@@ -328,7 +433,7 @@ class SculptGL extends Scene {
   // MOBILE EVENTS
   ////////////////
   onPanStart(e) {
-    if (e.pointerType === 'mouse' || this._pen)
+    if (e.pointerType === 'mouse' || this._pen || this._place)
       return;
     this._focusGui = false;
     var evProxy = this._eventProxy;
@@ -338,7 +443,7 @@ class SculptGL extends Scene {
   }
 
   onPanMove(e) {
-    if (e.pointerType === 'mouse' || this._pen)
+    if (e.pointerType === 'mouse' || this._pen || this._place)
       return;
     var evProxy = this._eventProxy;
     evProxy.pageX = e.center.x;
@@ -374,7 +479,7 @@ class SculptGL extends Scene {
   }
 
   onPanEnd(e) {
-    if (e.pointerType === 'mouse' || this._pen)
+    if (e.pointerType === 'mouse' || this._pen || this._place)
       return;
     this.onDeviceUp();
     // we need to detect when all fingers are released

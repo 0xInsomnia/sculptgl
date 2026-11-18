@@ -3,6 +3,8 @@ import Tools from 'editing/tools/Tools';
 import GuiSculptingTools from 'gui/GuiSculptingTools';
 import GuiPen from 'gui/GuiPen';
 import GuiPieces from 'gui/GuiPieces';
+import GuiZone from 'gui/GuiZone';
+import Zone from 'editing/Zone';
 
 // Phone and tablet layer on top of the desktop interface:
 // - on narrow screens the top menu and the right panel become drawers, so
@@ -174,10 +176,10 @@ function setupQuickBar(gui, drawers) {
   var rows = el('div', 'sgl-rows');
   var buttons = el('div', 'sgl-buttons');
 
-  top.appendChild(button('☰ ' + TR('mobileMenu'), TR('mobileMenu'), function () {
+  top.appendChild(button('☰', TR('mobileMenu'), function () {
     drawers.toggle('sgl-menu-open');
   }));
-  top.appendChild(button(TR('mobileTools') + ' ⚙', TR('mobileTools'), function () {
+  top.appendChild(button('⚙', TR('mobileTools'), function () {
     drawers.toggle('sgl-panel-open');
   }));
 
@@ -264,6 +266,7 @@ function setupQuickBar(gui, drawers) {
     var widget = GuiTools[manager.getToolIndex()];
     if (widget && widget._ctrlIntensity) widget._ctrlIntensity.setValue(val);
   });
+  radius.wrap.classList.add('sgl-range-radius');
   rows.appendChild(radius.wrap);
   rows.appendChild(intensity.wrap);
   bar.appendChild(hint);
@@ -271,6 +274,7 @@ function setupQuickBar(gui, drawers) {
   bar.appendChild(rows);
   document.body.appendChild(top);
   document.body.appendChild(bar);
+  GuiZone.init(gui, top, bar);
 
   // The quick bar mirrors controls that can also change from the panels or
   // the keyboard, so it re-reads them instead of keeping its own copy.
@@ -281,7 +285,7 @@ function setupQuickBar(gui, drawers) {
     var widget = GuiTools[index] || {};
     var selected = main.getMesh();
     var state = [index, current._negative, manager._symmetry, main._oneFingerView,
-      current._radius, current._intensity, selected && selected.getID()].join();
+      current._radius, current._intensity, selected && selected.getID(), main._touchMode, !!Zone.state].join();
     if (!force && state === last) return;
     last = state;
     tool.value = index;
@@ -290,7 +294,8 @@ function setupQuickBar(gui, drawers) {
     symmetry.setAttribute('aria-pressed', !!manager._symmetry);
     symmetry.hidden = !sculpting._ctrlSymmetry.domContainer || sculpting._ctrlSymmetry.domContainer.hidden;
     look.setAttribute('aria-pressed', !!main._oneFingerView);
-    hint.textContent = TR(GuiPen.hintKeys[index]);
+    hint.textContent = GuiZone.hint() || TR(GuiPen.hintKeys[index]);
+    GuiZone.sync();
     hint.hidden = !!main._hideHints;
     radius.wrap.hidden = !widget._ctrlRadius;
     intensity.wrap.hidden = !widget._ctrlIntensity;
@@ -313,7 +318,7 @@ GuiMobile.init = function (gui) {
     GuiMobile._shim = true;
   }
   // initGui can run again (language change): keep one quick bar.
-  var old = document.querySelectorAll('.sgl-top, .sgl-bar, .sgl-backdrop, .sgl-view');
+  var old = document.querySelectorAll('.sgl-top, .sgl-bar, .sgl-backdrop, .sgl-view, .sgl-zone-overlay, .sgl-lever');
   for (var i = 0; i < old.length; ++i) old[i].remove();
   if (GuiMobile._timer) window.clearInterval(GuiMobile._timer);
   GuiPieces.init(gui);

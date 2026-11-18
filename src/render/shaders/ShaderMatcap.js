@@ -2,6 +2,7 @@ import TR from 'gui/GuiTR';
 import ShaderBase from 'render/shaders/ShaderBase';
 import AlbedoMap from 'render/shaders/AlbedoMap';
 import BrushGlow from 'render/shaders/BrushGlow';
+import ZoneGlow from 'render/shaders/ZoneGlow';
 
 var ShaderMatcap = ShaderBase.getCopy();
 ShaderMatcap.vertexName = ShaderMatcap.fragmentName = 'Matcap';
@@ -60,6 +61,7 @@ ShaderMatcap.vertex = [
   'attribute vec3 aMaterial;',
   AlbedoMap.vertexDeclarations,
   BrushGlow.vertexDeclarations,
+  ZoneGlow.vertexDeclarations,
   ShaderBase.strings.vertUniforms,
   'varying vec3 vVertex;',
   'varying vec3 vNormal;',
@@ -70,6 +72,7 @@ ShaderMatcap.vertex = [
   'void main() {',
   AlbedoMap.vertexMain,
   BrushGlow.vertexMain,
+  ZoneGlow.vertexMain,
   '  vColor = uAlbedo.x >= 0.0 ? uAlbedo : aColor;',
   '  vMasking = aMaterial.z;',
   '  vNormal = mix(aNormal, uEN * aNormal, vMasking);',
@@ -90,6 +93,7 @@ ShaderMatcap.vertex = [
 ShaderMatcap.fragment = [
   AlbedoMap.fragmentDeclarations,
   BrushGlow.fragmentDeclarations,
+  ZoneGlow.fragmentDeclarations,
   'uniform sampler2D uTexture0;',
   'varying vec3 vVertex;',
   'varying vec3 vVertexPres;',
@@ -107,6 +111,7 @@ ShaderMatcap.fragment = [
   '  vec2 texCoord = 0.5 + 0.5 * vec2(dot(normal, nm_x), dot(normal, nm_y));',
   '  vec3 color = sRGBToLinear(texture2D(uTexture0, texCoord).rgb) * sRGBToLinear(vColor) * sRGBToLinear(albedoTex.rgb);',
   BrushGlow.fragmentApply,
+  ZoneGlow.fragmentApply,
   '  gl_FragColor = encodeFragColor(color, uAlpha);',
   '}'
 ].join('\n');
@@ -126,5 +131,6 @@ ShaderMatcap.updateUniforms = function (mesh, main) {
 
 AlbedoMap.install(ShaderMatcap);
 BrushGlow.install(ShaderMatcap);
+ZoneGlow.install(ShaderMatcap);
 
 export default ShaderMatcap;

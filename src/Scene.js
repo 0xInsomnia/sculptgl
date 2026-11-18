@@ -624,6 +624,7 @@ class Scene {
       var mesh = newMeshes[i];
       entry.mesh = mesh;
       entry.id = mesh.getID();
+      mesh.__sglName = entry.name; // shown on the touch pen and the lock button
       entry.faceHash = ImportGLB.hashFaces(mesh.getFaces(), mesh.getNbFaces() * 4);
       entry.sceneMatrix = mat4.clone(mesh.getMatrix());
       // characters are modelled facing forward around x = 0: mirror there,

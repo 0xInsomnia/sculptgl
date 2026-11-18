@@ -1,6 +1,7 @@
 import TR from 'gui/GuiTR';
 import Tools from 'editing/tools/Tools';
 import GuiSculptingTools from 'gui/GuiSculptingTools';
+import GuiPen from 'gui/GuiPen';
 
 // Phone and tablet layer on top of the desktop interface:
 // - on narrow screens the top menu and the right panel become drawers, so
@@ -212,10 +213,18 @@ function setupQuickBar(gui, drawers) {
     main._oneFingerView = !main._oneFingerView;
     sync(true);
   });
+  var lock = button('🔒', TR('penLock'), function () {
+    main._lockMesh = !main._lockMesh;
+    // aim at a piece with the pen, then press the lock: that piece is kept
+    if (main._lockMesh && main._penPiece && main.getMeshes().indexOf(main._penPiece) >= 0) main.setMesh(main._penPiece);
+    sync(true);
+  });
 
-  [undo, redo, tool, negative, symmetry, look].forEach(function (node) {
+  [undo, redo, tool, negative, symmetry, lock, look].forEach(function (node) {
     buttons.appendChild(node);
   });
+  // what the finger should do with the current tool
+  var hint = el('p', 'sgl-hint');
 
   var radius = range(label('sculptRadius'), 5, 300, function (val) {
     var widget = GuiTools[manager.getToolIndex()];
@@ -227,6 +236,7 @@ function setupQuickBar(gui, drawers) {
   });
   rows.appendChild(radius.wrap);
   rows.appendChild(intensity.wrap);
+  bar.appendChild(hint);
   bar.appendChild(buttons);
   bar.appendChild(rows);
   document.body.appendChild(top);
@@ -239,8 +249,9 @@ function setupQuickBar(gui, drawers) {
     var index = manager.getToolIndex();
     var current = manager.getCurrentTool();
     var widget = GuiTools[index] || {};
+    var selected = main.getMesh();
     var state = [index, current._negative, manager._symmetry, main._oneFingerView,
-      current._radius, current._intensity].join();
+      current._radius, current._intensity, main._lockMesh, selected && selected.getID()].join();
     if (!force && state === last) return;
     last = state;
     tool.value = index;
@@ -249,6 +260,10 @@ function setupQuickBar(gui, drawers) {
     symmetry.setAttribute('aria-pressed', !!manager._symmetry);
     symmetry.hidden = !sculpting._ctrlSymmetry.domContainer || sculpting._ctrlSymmetry.domContainer.hidden;
     look.setAttribute('aria-pressed', !!main._oneFingerView);
+    lock.setAttribute('aria-pressed', !!main._lockMesh);
+    lock.textContent = main._lockMesh ? '🔒' : '🔓';
+    var piece = main._lockMesh && selected ? '🔒 ' + (selected.__sglName || TR('penLockedPiece')) + ' · ' : '';
+    hint.textContent = piece + TR(GuiPen.hintKeys[index]);
     look.textContent = main._oneFingerView ? '✋ ' + TR('mobileView') : '✋';
     radius.wrap.hidden = !widget._ctrlRadius;
     intensity.wrap.hidden = !widget._ctrlIntensity;

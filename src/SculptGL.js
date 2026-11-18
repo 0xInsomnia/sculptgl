@@ -2,6 +2,7 @@ import 'misc/Polyfill';
 import { vec3 } from 'gl-matrix';
 import { Manager as HammerManager, Pan, Pinch, Tap } from 'hammerjs';
 import Tablet from 'misc/Tablet';
+import GuiPen from 'gui/GuiPen';
 import Enums from 'misc/Enums';
 import Utils from 'misc/Utils';
 import Scene from 'Scene';
@@ -31,7 +32,9 @@ class SculptGL extends Scene {
     this._lastNbPointers = 0;
     this._isWheelingIn = false;
     this._oneFingerView = false;
-    this._touches = new Set(); // fingers currently on the canvas // touch: one finger turns the view instead of sculpting
+    this._touches = new Set(); // fingers currently on the canvas
+    this._pen = null; // one-finger stroke driven by the offset pen (see _penDown)
+    this._lockMesh = false; // sculpt only the selected mesh // touch: one finger turns the view instead of sculpting
 
     // masking
     this._maskX = 0;
@@ -83,16 +86,133 @@ class SculptGL extends Scene {
 
   onPointer(event) {
     Tablet.pressure = event.pressure;
-    if (event.type !== 'pointerdown' || event.pointerType === 'mouse') return;
+    if (event.pointerType === 'mouse') return;
+    if (event.type === 'pointermove') {
+      if (this._pen && event.pointerId === this._pen.id) this._penMove(event);
+      return;
+    }
+    // no emulated mouse clicks after a touch: they sculpted a dot under the finger
+    event.preventDefault();
     // A finger landing alone starts a new gesture. Without this, after a
     // pinch Hammer can leave the finger count at 2 and the next one-finger
     // stroke turns the view instead of sculpting.
     this._touches.add(event.pointerId);
-    if (this._touches.size === 1) this._lastNbPointers = 0;
+    if (this._touches.size === 1) {
+      this._lastNbPointers = 0;
+      if (this._penAvailable()) this._penDown(event);
+    } else {
+      this._penEnd(); // two fingers: view gestures take over
+    }
   }
 
   onPointerEnd(event) {
     this._touches.delete(event.pointerId);
+    if (this._pen && event.pointerId === this._pen.id) this._penEnd();
+  }
+
+  ////////////////
+  // TOUCH PEN
+  ////////////////
+  // One finger on a touch screen drives a "pen" whose tip, a little away
+  // from the finger, is the point that sculpts: the finger no longer hides
+  // the spot. With aiming on, the tip only shows where it would act; holding
+  // still for a moment starts the stroke, lifting the finger ends it. Off the
+  // model one finger still turns the view, as before.
+  _penAvailable() {
+    return GuiPen.settings.enabled && !this._oneFingerView && this._meshes.length > 0;
+  }
+
+  _penProxy(pen, which) {
+    return { pageX: pen.tip.x, pageY: pen.tip.y, which: which };
+  }
+
+  _penOnModel(pen) {
+    this.setMousePosition(this._penProxy(pen));
+    return !!this._picking.intersectionMouseMeshes();
+  }
+
+  _penDown(event) {
+    var offset = GuiPen.offset();
+    var pen = this._pen = {
+      id: event.pointerId,
+      finger: { x: event.clientX, y: event.clientY },
+      tip: { x: event.clientX + offset.x, y: event.clientY + offset.y },
+      anchor: { x: event.clientX, y: event.clientY },
+      since: performance.now(),
+      direction: { x: 0, y: 0 },
+      mode: null,
+      timer: 0
+    };
+    this._focusGui = false;
+    if (!this._penOnModel(pen)) {
+      pen.mode = 'view';
+      this.onDeviceDown(this._penProxy(pen, MOUSE_RIGHT));
+    } else if (GuiPen.settings.aim) {
+      pen.mode = 'aim';
+      this.onDeviceMove(this._penProxy(pen)); // brush preview only
+      pen.timer = window.setInterval(this._penTick.bind(this), 30);
+    } else {
+      this._penStart(pen);
+    }
+    this._penDraw();
+  }
+
+  _penStart(pen) {
+    pen.mode = 'sculpt';
+    window.clearInterval(pen.timer);
+    this.onDeviceDown(this._penProxy(pen, MOUSE_LEFT));
+  }
+
+  _penTick() {
+    var pen = this._pen;
+    if (!pen || pen.mode !== 'aim') return;
+    if (performance.now() - pen.since >= GuiPen.settings.hold && this._penOnModel(pen)) this._penStart(pen);
+    this._penDraw();
+  }
+
+  _penMove(event) {
+    var pen = this._pen;
+    var offset = GuiPen.offset();
+    var x = event.clientX + offset.x;
+    var y = event.clientY + offset.y;
+    // smoothed direction, for the arrow on the tip
+    pen.direction.x = 0.7 * pen.direction.x + 0.3 * (x - pen.tip.x);
+    pen.direction.y = 0.7 * pen.direction.y + 0.3 * (y - pen.tip.y);
+    pen.finger.x = event.clientX;
+    pen.finger.y = event.clientY;
+    pen.tip.x = x;
+    pen.tip.y = y;
+    if (pen.mode === 'aim') {
+      // moving restarts the hold; tiny tremors do not
+      var dx = pen.finger.x - pen.anchor.x;
+      var dy = pen.finger.y - pen.anchor.y;
+      if (dx * dx + dy * dy > 64) {
+        pen.anchor.x = pen.finger.x;
+        pen.anchor.y = pen.finger.y;
+        pen.since = performance.now();
+      }
+    }
+    this.onDeviceMove(this._penProxy(pen));
+    this._penDraw();
+  }
+
+  _penEnd() {
+    var pen = this._pen;
+    if (!pen) return;
+    this._pen = null;
+    window.clearInterval(pen.timer);
+    if (pen.mode === 'sculpt' || pen.mode === 'view') this.onDeviceUp();
+    else this.render(); // remove the brush preview
+    GuiPen.show(null, null, null);
+  }
+
+  _penDraw() {
+    var pen = this._pen;
+    if (!pen || pen.mode === 'view') return GuiPen.show(null, null, null);
+    var progress = Math.min(1, (performance.now() - pen.since) / GuiPen.settings.hold);
+    var picked = this._picking.getMesh();
+    if (picked) this._penPiece = picked; // the lock button locks the piece last aimed at
+    GuiPen.show(pen.finger, pen.tip, pen.mode, progress, pen.direction, picked ? picked.__sglName : '');
   }
 
   initHammer() {
@@ -181,7 +301,7 @@ class SculptGL extends Scene {
   // MOBILE EVENTS
   ////////////////
   onPanStart(e) {
-    if (e.pointerType === 'mouse')
+    if (e.pointerType === 'mouse' || this._pen)
       return;
     this._focusGui = false;
     var evProxy = this._eventProxy;
@@ -191,7 +311,7 @@ class SculptGL extends Scene {
   }
 
   onPanMove(e) {
-    if (e.pointerType === 'mouse')
+    if (e.pointerType === 'mouse' || this._pen)
       return;
     var evProxy = this._eventProxy;
     evProxy.pageX = e.center.x;
@@ -227,7 +347,7 @@ class SculptGL extends Scene {
   }
 
   onPanEnd(e) {
-    if (e.pointerType === 'mouse')
+    if (e.pointerType === 'mouse' || this._pen)
       return;
     this.onDeviceUp();
     // we need to detect when all fingers are released

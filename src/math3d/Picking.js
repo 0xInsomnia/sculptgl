@@ -152,7 +152,12 @@ class Picking {
   }
 
   /** Intersection between a ray the mouse position for every meshes */
-  intersectionMouseMeshes(meshes = this._main.getMeshes(), mouseX = this._main._mouseX, mouseY = this._main._mouseY) {
+  intersectionMouseMeshes(meshes, mouseX = this._main._mouseX, mouseY = this._main._mouseY) {
+    if (meshes === undefined) {
+      // "lock piece": only the selected mesh can be sculpted
+      var main = this._main;
+      meshes = main._lockMesh && main.getMesh() ? [main.getMesh()] : main.getMeshes();
+    }
 
     var vNear = this.unproject(mouseX, mouseY, 0.0);
     var vFar = this.unproject(mouseX, mouseY, 0.1);

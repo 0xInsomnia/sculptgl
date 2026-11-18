@@ -13,6 +13,7 @@ import GuiStates from 'gui/GuiStates';
 import GuiTablet from 'gui/GuiTablet';
 import GuiMobile from 'gui/GuiMobile';
 import GuiWelcome from 'gui/GuiWelcome';
+import GuiPen from 'gui/GuiPen';
 import ShaderContour from 'render/shaders/ShaderContour';
 
 import Export from 'files/Export';
@@ -73,6 +74,7 @@ class Gui {
     ctrls[idc++] = this._ctrlRendering = new GuiRendering(this._sidebar, this);
     ctrls[idc++] = this._ctrlTopology = new GuiTopology(this._sidebar, this);
     ctrls[idc++] = this._ctrlSculpting = new GuiSculpting(this._sidebar, this);
+    GuiPen.initMenu(this._sidebar, this._main);
 
     // gui extra
     var extra = this._topbar.addExtra();

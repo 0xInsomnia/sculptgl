@@ -3,6 +3,7 @@ import { vec3 } from 'gl-matrix';
 import { Manager as HammerManager, Pan, Pinch, Tap } from 'hammerjs';
 import Tablet from 'misc/Tablet';
 import GuiPen from 'gui/GuiPen';
+import BrushGlow from 'render/shaders/BrushGlow';
 import Enums from 'misc/Enums';
 import Utils from 'misc/Utils';
 import Scene from 'Scene';
@@ -85,7 +86,10 @@ class SculptGL extends Scene {
   }
 
   onPointer(event) {
-    Tablet.pressure = event.pressure;
+    // Fingers report a meaningless pressure (full, or zero on some phones),
+    // which silently made the brush bigger or smaller than its circle: only
+    // styluses and mice drive the pressure.
+    Tablet.pressure = event.pointerType === 'touch' ? 0.5 : event.pressure;
     if (event.pointerType === 'mouse') return;
     if (event.type === 'pointermove') {
       if (this._pen && event.pointerId === this._pen.id) this._penMove(event);
@@ -196,13 +200,37 @@ class SculptGL extends Scene {
     this._penDraw();
   }
 
+  // Light zone on the model under the pen (see BrushGlow)
+  _penGlow() {
+    var pen = this._pen;
+    var picking = this._picking;
+    var mesh = pen && pen.mode !== 'view' ? picking.getMesh() : null;
+    if (!mesh || !BrushGlow.enabled) {
+      if (BrushGlow.state) {
+        BrushGlow.state = null;
+        this.render();
+      }
+      return;
+    }
+    var symmetry = this._sculptManager.getSymmetry() ? this._pickingSym : null;
+    BrushGlow.state = {
+      mesh: mesh,
+      center: picking.getIntersectionPoint().slice(),
+      mirror: symmetry && symmetry.getMesh() === mesh ? symmetry.getIntersectionPoint().slice() : null,
+      radius: picking.getLocalRadius(),
+      color: pen.mode === 'sculpt' ? [1.0, 0.45, 0.08] : [0.25, 0.75, 0.95]
+    };
+    this.render(); // the light is drawn by the model itself: redraw it
+  }
+
   _penEnd() {
     var pen = this._pen;
     if (!pen) return;
     this._pen = null;
     window.clearInterval(pen.timer);
     if (pen.mode === 'sculpt' || pen.mode === 'view') this.onDeviceUp();
-    else this.render(); // remove the brush preview
+    BrushGlow.state = null;
+    this.render(); // remove the brush preview and the light zone
     GuiPen.show(null, null, null);
   }
 
@@ -212,6 +240,7 @@ class SculptGL extends Scene {
     var progress = Math.min(1, (performance.now() - pen.since) / GuiPen.settings.hold);
     var picked = this._picking.getMesh();
     if (picked) this._penPiece = picked; // the lock button locks the piece last aimed at
+    this._penGlow();
     GuiPen.show(pen.finger, pen.tip, pen.mode, progress, pen.direction, picked ? picked.__sglName : '');
   }
 

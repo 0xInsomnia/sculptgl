@@ -230,6 +230,7 @@ var TR = {
   mobileView: 'Ruota vista',
 
   // touch pen and per-tool hints
+  penGlow: "Zona di luce sul modello",
   penLockedPiece: "pezzo scelto",
   penTitle: "Penna (tocco)",
   penEnabled: "Penna accanto al dito",

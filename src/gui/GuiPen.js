@@ -1,4 +1,5 @@
 import TR from 'gui/GuiTR';
+import BrushGlow from 'render/shaders/BrushGlow';
 
 // Touch "pen": the point that sculpts sits a little away from the finger so
 // the finger never hides it. This file draws it (pen body from the finger to
@@ -14,7 +15,8 @@ var GuiPen = {
     hand: 'right', // the tip goes on the other side of the hand
     distance: 75, // CSS pixels between finger and tip
     aim: true, // aim first, start sculpting after holding still
-    hold: 350 // milliseconds to hold still before sculpting starts
+    hold: 350, // milliseconds to hold still before sculpting starts
+    glow: true // light zone on the model under the brush
   }
 };
 
@@ -27,10 +29,13 @@ try {
     if (saved.distance >= 30 && saved.distance <= 160) s.distance = saved.distance;
     if (typeof saved.aim === 'boolean') s.aim = saved.aim;
     if (saved.hold >= 150 && saved.hold <= 900) s.hold = saved.hold;
+    if (typeof saved.glow === 'boolean') s.glow = saved.glow;
   }
 } catch (e) {
   // private mode or blocked storage: defaults are fine
 }
+
+BrushGlow.enabled = GuiPen.settings.glow;
 
 GuiPen.save = function () {
   try {
@@ -143,6 +148,10 @@ GuiPen.initMenu = function (sidebar, main) {
     s.hold = value;
     GuiPen.save();
   }, 150, 900, 10);
+  menu.addCheckbox(TR('penGlow'), s.glow, function (value) {
+    s.glow = BrushGlow.enabled = value;
+    GuiPen.save();
+  });
   menu.addCheckbox(TR('penLock'), main, '_lockMesh');
   return menu;
 };

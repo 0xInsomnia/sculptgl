@@ -2,6 +2,7 @@ import { mat3 } from 'gl-matrix';
 import getOptionsURL from 'misc/getOptionsURL';
 import ShaderBase from 'render/shaders/ShaderBase';
 import AlbedoMap from 'render/shaders/AlbedoMap';
+import BrushGlow from 'render/shaders/BrushGlow';
 import pbrGLSL from 'render/shaders/glsl/pbr.glsl';
 
 var ShaderPBR = ShaderBase.getCopy();
@@ -58,6 +59,7 @@ ShaderPBR.vertex = [
   'attribute vec3 aColor;',
   'attribute vec3 aMaterial;',
   AlbedoMap.vertexDeclarations,
+  BrushGlow.vertexDeclarations,
   ShaderBase.strings.vertUniforms,
   'uniform float uRoughness;',
   'uniform float uMetallic;',
@@ -70,6 +72,7 @@ ShaderPBR.vertex = [
   'varying float vMasking;',
   'void main() {',
   AlbedoMap.vertexMain,
+  BrushGlow.vertexMain,
   '  vAlbedo = uAlbedo.x >= 0.0 ? uAlbedo : aColor;',
   '  vRoughness = uRoughness >= 0.0 ? uRoughness : aMaterial.x;',
   '  vMetallic = uMetallic >= 0.0 ? uMetallic : aMaterial.y;',
@@ -85,6 +88,7 @@ ShaderPBR.vertex = [
 
 ShaderPBR.fragment = [
   AlbedoMap.fragmentDeclarations,
+  BrushGlow.fragmentDeclarations,
   'varying vec3 vVertex;',
   'varying vec3 vNormal;',
   'varying vec3 vAlbedo;',
@@ -104,6 +108,7 @@ ShaderPBR.fragment = [
   '  vec3 specular = mix( vec3(0.04), linColor, vMetallic);',
   '',
   '  vec3 color = uExposure * computeIBL_UE4( normal, -normalize(vVertex), albedo, roughness, specular );',
+  BrushGlow.fragmentApply,
   '  gl_FragColor = encodeFragColor(color, uAlpha);',
   '}'
 ].join('\n');
@@ -180,5 +185,6 @@ ShaderPBR.updateUniforms = function (mesh, main) {
 };
 
 AlbedoMap.install(ShaderPBR);
+BrushGlow.install(ShaderPBR);
 
 export default ShaderPBR;

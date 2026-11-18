@@ -230,6 +230,7 @@ var TR = {
   mobileView: 'Turn view',
 
   // touch pen and per-tool hints
+  penGlow: "Light zone on the model",
   penLockedPiece: "selected piece",
   penTitle: "Touch pen",
   penEnabled: "Pen beside the finger",

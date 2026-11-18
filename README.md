@@ -24,6 +24,15 @@ Changes made for sculpting characters on a phone:
   Dynamic topology, remeshing and decimation change the vertex list, so those
   meshes can only be saved as OBJ/STL/PLY/SGL. Details sculpted after
   subdividing are saved at the original mesh density.
+- **Touch pen**: one finger drives a pen whose tip, beside the finger, is
+  the point that sculpts (cross on the exact spot, piece name, ring that fills
+  while aiming: hold still to start the stroke). The area the brush will
+  reach lights up on the model, mirrored with symmetry. A line above the quick
+  bar says what the finger should do with the current tool. *Lock piece*
+  keeps strokes on one piece (e.g. not the hair while sculpting the neck).
+  Settings in Tools → Touch pen.
+- **Real textures** of imported characters are shown while sculpting.
+- 100 undo steps (was 15) and *Restore original* (undoable).
 - **Install as an app**: served over https (e.g. GitHub Pages, see
   `.github/workflows/pages.yml`) it can be added to the home screen and works
   offline after the first visit.

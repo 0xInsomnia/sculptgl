@@ -274,11 +274,16 @@ var TR = {
   zonePinch: "Stringi",
   zoneSpread: "Allarga",
   zoneNoTool: "Questo strumento non funziona con la zona: scegli Spazzola, Gonfia, Ammorbidisci, Appiattisci, Pizzica, Muovi, Scala locale o Torci.",
-  zoneHintPlace: "Zona: tieni il dito fermo un attimo sul punto da modificare per fissare lì la forma.",
+  zoneHintPlace: "Zona: tieni il dito fermo un attimo sul punto da modificare per fissare lì la forma. Due dita: gira il modello.",
   zoneHintLasso: "Zona libera: disegna il contorno col dito, quando lo sollevi si chiude.",
-  zoneHintLever: "Muovi la leva a destra su o giù per applicare lo strumento. Ogni spinta si annulla con ↶.",
+  zoneHintLever: "Leva a destra: su e giù applicano lo strumento (↶ annulla una spinta). Tocco breve sul modello: togli la zona.",
 
   // touch pen and per-tool hints
+  penSide: "Lato della punta",
+  penSideAuto: "Automatico (punta verso il centro)",
+  penSideRight: "Sempre a destra",
+  penSideLeft: "Sempre a sinistra",
+  gesturesToast: "Un dito: scolpisci · Due dita: gira e pizzica per lo zoom · Tre dita: sposta · ✋ a sinistra: un dito gira",
   penGlow: "Zona di luce sul modello",
   penLockedPiece: "pezzo scelto",
   penTitle: "Penna (tocco)",

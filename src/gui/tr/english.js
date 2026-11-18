@@ -274,11 +274,16 @@ var TR = {
   zonePinch: "Tighten",
   zoneSpread: "Widen",
   zoneNoTool: "This tool does not work with a zone: pick Brush, Inflate, Smooth, Flatten, Pinch, Move, Local scale or Twist.",
-  zoneHintPlace: "Zone: hold your finger still for a moment on the spot to change to fix the shape there.",
+  zoneHintPlace: "Zone: hold your finger still for a moment on the spot to change to fix the shape there. Two fingers: turn the model.",
   zoneHintLasso: "Free zone: draw the outline with your finger, it closes when you lift it.",
-  zoneHintLever: "Push the lever on the right up or down to apply the tool. Each push can be undone with ↶.",
+  zoneHintLever: "Lever on the right: up and down apply the tool (↶ undoes a push). Short tap on the model: remove the zone.",
 
   // touch pen and per-tool hints
+  penSide: "Tip side",
+  penSideAuto: "Automatic (tip towards the middle)",
+  penSideRight: "Always right",
+  penSideLeft: "Always left",
+  gesturesToast: "One finger: sculpt · Two fingers: turn and pinch to zoom · Three fingers: move · ✋ on the left: one finger turns",
   penGlow: "Light zone on the model",
   penLockedPiece: "selected piece",
   penTitle: "Touch pen",

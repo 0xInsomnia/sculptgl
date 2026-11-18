@@ -679,3 +679,26 @@ html, body {
 .sgl-lever.sgl-disabled .sgl-lever-track {
   opacity: 0.35;
 }
+
+.sgl-lever-remove {
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sgl-toast {
+  position: fixed;
+  z-index: 7;
+  left: 50%;
+  top: 70px;
+  transform: translateX(-50%);
+  width: min(88vw, 420px);
+  padding: 10px 14px;
+  border-radius: 14px;
+  background: rgba(20, 21, 18, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: #eee;
+  font: 14px/1.4 'Open Sans', system-ui, sans-serif;
+  text-align: center;
+}

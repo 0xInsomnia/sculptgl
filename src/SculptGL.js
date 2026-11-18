@@ -138,9 +138,16 @@ class SculptGL extends Scene {
       timer: 0
     };
     this._focusGui = false;
+    place.start = performance.now();
+    place.origin = { x: place.x, y: place.y };
     if (GuiZone.shape === 'lasso') {
+      // the free outline is drawn with the pen tip, beside the finger
       place.mode = 'draw';
+      place.side = GuiPen.sideFor(place.x);
+      place.offset = GuiPen.offset(place.side);
+      place.points = [{ x: place.x + place.offset.x, y: place.y + place.offset.y }];
       GuiZone.showPlacing({ points: place.points });
+      GuiPen.show({ x: place.x, y: place.y }, place.points[0], 'sculpt', 1, null, '');
       return;
     }
     this.setMousePosition({ pageX: place.x, pageY: place.y });
@@ -169,9 +176,11 @@ class SculptGL extends Scene {
     if (place.mode === 'view') {
       this.onDeviceMove({ pageX: x, pageY: y });
     } else if (place.mode === 'draw') {
+      var tip = { x: x + place.offset.x, y: y + place.offset.y };
       var last = place.points[place.points.length - 1];
-      if (Math.abs(x - last.x) + Math.abs(y - last.y) > 4) place.points.push({ x: x, y: y });
+      if (Math.abs(tip.x - last.x) + Math.abs(tip.y - last.y) > 4) place.points.push(tip);
       GuiZone.showPlacing({ points: place.points });
+      GuiPen.show({ x: x, y: y }, tip, 'sculpt', 1, { x: tip.x - last.x, y: tip.y - last.y }, '');
     } else if (place.mode === 'aim') {
       // the outline follows the finger; moving restarts the hold
       if (Math.abs(x - place.anchor.x) + Math.abs(y - place.anchor.y) > 10) {
@@ -203,7 +212,15 @@ class SculptGL extends Scene {
   _zoneUp(lifted) {
     var place = this._place;
     if (!place) return;
-    if (lifted && place.mode === 'draw' && place.points.length >= 6) this._zoneFix(GuiZone.lassoSpec(place.points));
+    var tap = lifted && performance.now() - place.start < 300 &&
+      Math.abs(place.x - place.origin.x) + Math.abs(place.y - place.origin.y) < 12;
+    if (tap && Zone.state) {
+      // a short tap takes the zone away
+      Zone.clear();
+      GuiZone.sync();
+    } else if (lifted && place.mode === 'draw' && place.points.length >= 6) {
+      this._zoneFix(GuiZone.lassoSpec(place.points));
+    }
     this._zoneCancel();
   }
 
@@ -216,6 +233,7 @@ class SculptGL extends Scene {
     this._picking.intersectionMouseMeshes([]);
     this.render();
     GuiZone.showPlacing(null);
+    GuiPen.show(null, null, null);
   }
 
   ////////////////
@@ -240,18 +258,32 @@ class SculptGL extends Scene {
   }
 
   _penDown(event) {
-    var offset = GuiPen.offset();
-    var pen = this._pen = {
+    var side = GuiPen.sideFor(event.clientX);
+    var offset = GuiPen.offset(side);
+    this._pen = {
       id: event.pointerId,
+      side: side,
+      offset: offset,
       finger: { x: event.clientX, y: event.clientY },
       tip: { x: event.clientX + offset.x, y: event.clientY + offset.y },
       anchor: { x: event.clientX, y: event.clientY },
       since: performance.now(),
       direction: { x: 0, y: 0 },
-      mode: null,
+      mode: 'wait',
       timer: 0
     };
     this._focusGui = false;
+    // Wait a moment before doing anything: a second finger landing now means
+    // the view is being moved, and the pen should not show up at all.
+    this._pen.timer = window.setTimeout(this._penBegin.bind(this), 110);
+  }
+
+  _penBegin() {
+    var pen = this._pen;
+    if (!pen || pen.mode !== 'wait') return;
+    pen.since = performance.now();
+    pen.anchor.x = pen.finger.x;
+    pen.anchor.y = pen.finger.y;
     if (!this._penOnModel(pen)) {
       pen.mode = 'view';
       this.onDeviceDown(this._penProxy(pen, MOUSE_RIGHT));
@@ -280,9 +312,20 @@ class SculptGL extends Scene {
 
   _penMove(event) {
     var pen = this._pen;
-    var offset = GuiPen.offset();
-    var x = event.clientX + offset.x;
-    var y = event.clientY + offset.y;
+    // the tip changes side only while aiming, never in the middle of a stroke
+    if (pen.mode === 'wait' || pen.mode === 'aim') pen.side = GuiPen.sideFor(event.clientX, pen.side);
+    var target = GuiPen.offset(pen.side);
+    pen.offset.x += (target.x - pen.offset.x) * 0.35;
+    pen.offset.y += (target.y - pen.offset.y) * 0.35;
+    var x = event.clientX + pen.offset.x;
+    var y = event.clientY + pen.offset.y;
+    if (pen.mode === 'wait') {
+      pen.finger.x = event.clientX;
+      pen.finger.y = event.clientY;
+      pen.tip.x = x;
+      pen.tip.y = y;
+      return;
+    }
     // smoothed direction, for the arrow on the tip
     pen.direction.x = 0.7 * pen.direction.x + 0.3 * (x - pen.tip.x);
     pen.direction.y = 0.7 * pen.direction.y + 0.3 * (y - pen.tip.y);
@@ -332,6 +375,8 @@ class SculptGL extends Scene {
     if (!pen) return;
     this._pen = null;
     window.clearInterval(pen.timer);
+    window.clearTimeout(pen.timer);
+    if (pen.mode === 'wait') return; // nothing was started
     if (pen.mode === 'sculpt' || pen.mode === 'view') this.onDeviceUp();
     BrushGlow.state = null;
     this.render(); // remove the brush preview and the light zone
@@ -473,7 +518,10 @@ class SculptGL extends Scene {
   onPanUpdateNbPointers(nbPointers) {
     // called on panstart or panmove (not consistent)
     var evProxy = this._eventProxy;
-    evProxy.which = nbPointers === 1 && (this._lastNbPointers >= 1 || this._oneFingerView) ? 3 : nbPointers;
+    // one finger: sculpt (turns after a two-finger gesture or in view mode);
+    // two fingers: turn the model (pinch zooms); three fingers: move it
+    var which = nbPointers === 2 ? MOUSE_RIGHT : nbPointers === 3 ? MOUSE_MIDDLE : nbPointers;
+    evProxy.which = nbPointers === 1 && (this._lastNbPointers >= 1 || this._oneFingerView) ? MOUSE_RIGHT : which;
     this._lastNbPointers = nbPointers;
     this.onDeviceDown(evProxy);
   }

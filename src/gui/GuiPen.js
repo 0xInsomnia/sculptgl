@@ -12,7 +12,7 @@ var STORAGE = 'sculptgl-pen';
 var GuiPen = {
   settings: {
     enabled: true,
-    hand: 'right', // the tip goes on the other side of the hand
+    side: 'auto', // tip side: 'auto' (towards the middle of the screen), 'right', 'left'
     distance: 75, // CSS pixels between finger and tip
     aim: true, // aim first, start sculpting after holding still
     hold: 1000, // milliseconds to hold still before sculpting starts
@@ -25,7 +25,7 @@ try {
   if (saved && typeof saved === 'object') {
     var s = GuiPen.settings;
     if (typeof saved.enabled === 'boolean') s.enabled = saved.enabled;
-    if (saved.hand === 'left' || saved.hand === 'right') s.hand = saved.hand;
+    if (saved.side === 'auto' || saved.side === 'left' || saved.side === 'right') s.side = saved.side;
     if (saved.distance >= 30 && saved.distance <= 160) s.distance = saved.distance;
     if (typeof saved.aim === 'boolean') s.aim = saved.aim;
     // version 2: the default hold went from 0.35 s to 1 s, older saves keep theirs only if longer
@@ -46,12 +46,23 @@ GuiPen.save = function () {
   }
 };
 
-// Mostly sideways and a little up: a right hand comes from the bottom
-// right, so the tip goes to the left.
-GuiPen.offset = function () {
+// Mostly sideways and a little up, on the given side of the finger.
+GuiPen.offset = function (side) {
   var d = GuiPen.settings.distance;
-  var side = GuiPen.settings.hand === 'right' ? -1 : 1;
-  return { x: side * 0.88 * d, y: -0.47 * d };
+  return { x: (side === 'left' ? -1 : 1) * 0.88 * d, y: -0.47 * d };
+};
+
+// Which side the tip goes. Automatic: the tip points towards the middle of
+// the screen, where the model is: on the right half the pen lies on the
+// right of the tip, past the middle it moves over to the left. It only
+// switches once the finger is clearly past the middle (no flicker).
+GuiPen.sideFor = function (x, current) {
+  var setting = GuiPen.settings.side;
+  if (setting === 'left' || setting === 'right') return setting;
+  var middle = window.innerWidth / 2;
+  if (current === 'left') return x < middle - 30 ? 'right' : 'left';
+  if (current === 'right') return x > middle + 30 ? 'left' : 'right';
+  return x >= middle ? 'left' : 'right';
 };
 
 // ------------------------------------------------------------ overlay
@@ -133,10 +144,11 @@ GuiPen.initMenu = function (sidebar, main) {
     s.enabled = value;
     GuiPen.save();
   });
-  menu.addCombobox(TR('penHand'), s.hand === 'right' ? 0 : 1, function (value) {
-    s.hand = Number(value) === 0 ? 'right' : 'left';
+  var sides = ['auto', 'right', 'left'];
+  menu.addCombobox(TR('penSide'), Math.max(0, sides.indexOf(s.side)), function (value) {
+    s.side = sides[Number(value)] || 'auto';
     GuiPen.save();
-  }, [TR('penHandRight'), TR('penHandLeft')]);
+  }, [TR('penSideAuto'), TR('penSideRight'), TR('penSideLeft')]);
   menu.addSlider(TR('penDistance'), s.distance, function (value) {
     s.distance = value;
     GuiPen.save();

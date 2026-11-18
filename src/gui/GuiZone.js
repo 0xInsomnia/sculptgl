@@ -168,9 +168,17 @@ function buildLever() {
   var bottom = el('span', 'sgl-lever-label sgl-lever-bottom');
   track.appendChild(knob);
   knob.appendChild(value);
+  var remove = el('button', 'sgl-btn sgl-lever-remove', '✕ ' + TR('zoneClear'));
+  remove.type = 'button';
+  remove.addEventListener('click', function () {
+    Zone.clear();
+    GuiZone.sync();
+    main.render();
+  });
   lever.appendChild(top);
   lever.appendChild(track);
   lever.appendChild(bottom);
+  lever.appendChild(remove);
   document.body.appendChild(lever);
   nodes.lever = lever;
   nodes.leverTop = top;
@@ -311,7 +319,9 @@ function buildModeSwitch(top) {
   var sw = el('div', 'sgl-mode');
   var pen = button('✎ ' + TR('modePen'), TR('modePen'), function () {
     main._touchMode = 'pen';
+    Zone.clear(); // leaving zone mode leaves nothing selected behind
     GuiZone.sync();
+    main.render();
   });
   var zone = button('◎ ' + TR('modeZone'), TR('modeZone'), function () {
     main._touchMode = 'zone';

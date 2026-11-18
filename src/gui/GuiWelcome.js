@@ -41,8 +41,26 @@ GuiWelcome.init = function (gui) {
   GuiWelcome.update(gui);
 };
 
+var hadModel = false;
 GuiWelcome.update = function (gui) {
-  if (card) card.hidden = gui._main.getMeshes().length > 0;
+  var has = gui._main.getMeshes().length > 0;
+  if (card) card.hidden = has;
+  // the first time a model shows up on a touch screen, say how to move it
+  if (has && !hadModel && document.body.classList.contains('sgl-touch')) toast(TR('gesturesToast'));
+  hadModel = has;
 };
+
+function toast(text) {
+  var node = document.createElement('div');
+  node.className = 'sgl-toast';
+  node.textContent = text;
+  node.addEventListener('click', function () {
+    node.remove();
+  });
+  document.body.appendChild(node);
+  window.setTimeout(function () {
+    node.remove();
+  }, 6000);
+}
 
 export default GuiWelcome;

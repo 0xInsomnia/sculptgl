@@ -14,6 +14,7 @@ var RenderData = function (gl) {
     _matcap: Math.min(opts.matcap, ShaderMatcap.matcaps.length - 1), // matcap id
     _curvature: Math.min(opts.curvature, 5.0),
     _texture0: null,
+    _albedoMap: null, // colour texture of imported models (see AlbedoMap)
 
     _useDrawArrays: false,
     _vertexBuffer: new Buffer(gl, gl.ARRAY_BUFFER, gl.DYNAMIC_DRAW),

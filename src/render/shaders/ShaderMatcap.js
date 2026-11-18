@@ -1,5 +1,6 @@
 import TR from 'gui/GuiTR';
 import ShaderBase from 'render/shaders/ShaderBase';
+import AlbedoMap from 'render/shaders/AlbedoMap';
 
 var ShaderMatcap = ShaderBase.getCopy();
 ShaderMatcap.vertexName = ShaderMatcap.fragmentName = 'Matcap';
@@ -56,6 +57,7 @@ ShaderMatcap.vertex = [
   'attribute vec3 aNormal;',
   'attribute vec3 aColor;',
   'attribute vec3 aMaterial;',
+  AlbedoMap.vertexDeclarations,
   ShaderBase.strings.vertUniforms,
   'varying vec3 vVertex;',
   'varying vec3 vNormal;',
@@ -64,6 +66,7 @@ ShaderMatcap.vertex = [
   'varying vec3 vVertexPres;',
   'uniform vec3 uAlbedo;',
   'void main() {',
+  AlbedoMap.vertexMain,
   '  vColor = uAlbedo.x >= 0.0 ? uAlbedo : aColor;',
   '  vMasking = aMaterial.z;',
   '  vNormal = mix(aNormal, uEN * aNormal, vMasking);',
@@ -82,6 +85,7 @@ ShaderMatcap.vertex = [
 ].join('\n');
 
 ShaderMatcap.fragment = [
+  AlbedoMap.fragmentDeclarations,
   'uniform sampler2D uTexture0;',
   'varying vec3 vVertex;',
   'varying vec3 vVertexPres;',
@@ -91,12 +95,13 @@ ShaderMatcap.fragment = [
   ShaderBase.strings.fragColorUniforms,
   ShaderBase.strings.fragColorFunction,
   'void main() {',
+  AlbedoMap.fragmentSample,
   '  vec3 normal = getNormal();',
   '  vec3 nm_z = normalize(vVertexPres);',
   '  vec3 nm_x = vec3(-nm_z.z, 0.0, nm_z.x);',
   '  vec3 nm_y = cross(nm_x, nm_z);',
   '  vec2 texCoord = 0.5 + 0.5 * vec2(dot(normal, nm_x), dot(normal, nm_y));',
-  '  vec3 color = sRGBToLinear(texture2D(uTexture0, texCoord).rgb) * sRGBToLinear(vColor);',
+  '  vec3 color = sRGBToLinear(texture2D(uTexture0, texCoord).rgb) * sRGBToLinear(vColor) * sRGBToLinear(albedoTex.rgb);',
   '  gl_FragColor = encodeFragColor(color, uAlpha);',
   '}'
 ].join('\n');
@@ -113,5 +118,7 @@ ShaderMatcap.updateUniforms = function (mesh, main) {
   gl.uniform3fv(uniforms.uAlbedo, mesh.getAlbedo());
   ShaderBase.updateUniforms.call(this, mesh, main);
 };
+
+AlbedoMap.install(ShaderMatcap);
 
 export default ShaderMatcap;

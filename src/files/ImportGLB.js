@@ -200,10 +200,12 @@ function buildMesh(gltf, gl, primitives, position, matrix) {
   // which original vertices are drawn, and by which primitive (for colours)
   var owner = new Int32Array(count).fill(-1);
   var triangles = [];
+  var trianglePrimitive = [];
   primitives.forEach(function (primitive, p) {
     var indices = readIndices(gltf, primitive, count);
     for (var i = 0; i + 2 < indices.length; i += 3) {
       triangles.push(indices[i], indices[i + 1], indices[i + 2]);
+      trianglePrimitive.push(p);
       for (var k = 0; k < 3; ++k) owner[indices[i + k]] = p;
     }
   });
@@ -226,6 +228,34 @@ function buildMesh(gltf, gl, primitives, position, matrix) {
     weldOf[v] = id;
   }
 
+  // One atlas texture per sculptable mesh: each material gets a cell, and
+  // its UVs are moved into that cell. A vertex shared by two materials gets
+  // one texture coordinate per material (SculptGL keeps UVs per corner).
+  var atlas = atlasLayout(gltf, primitives, !!uv);
+  var texCoords = [];
+  var uvIndex = new Map();
+  var cornerUV = function (vertex, primitive) {
+    var slot = atlas.slotOf[primitive];
+    var key = vertex * atlas.slots.length + slot;
+    var index = uvIndex.get(key);
+    if (index !== undefined) return index;
+    index = texCoords.length / 2;
+    uvIndex.set(key, index);
+    var cell = atlas.slots[slot];
+    var s = 0.5;
+    var t = 0.5;
+    if (cell.image !== null) {
+      s = uv[vertex * 2];
+      t = uv[vertex * 2 + 1];
+      if (s < 0 || s > 1) s -= Math.floor(s); // tiling cannot cross cells
+      if (t < 0 || t > 1) t -= Math.floor(t);
+    }
+    var x = (cell.column + atlas.inset + s * (1 - 2 * atlas.inset)) / atlas.columns;
+    var y = (cell.row + atlas.inset + t * (1 - 2 * atlas.inset)) / atlas.rows;
+    texCoords.push(x, 1.0 - y); // textures are uploaded upside down (UNPACK_FLIP_Y)
+    return index;
+  };
+
   var faces = [];
   var uvFaces = [];
   for (var t = 0; t < triangles.length; t += 3) {
@@ -233,8 +263,9 @@ function buildMesh(gltf, gl, primitives, position, matrix) {
     var b = weldOf[triangles[t + 1]];
     var c = weldOf[triangles[t + 2]];
     if (a === b || b === c || a === c) continue;
+    var p = trianglePrimitive[t / 3];
     faces.push(a, b, c, Utils.TRI_INDEX);
-    uvFaces.push(triangles[t], triangles[t + 1], triangles[t + 2], Utils.TRI_INDEX);
+    uvFaces.push(cornerUV(triangles[t], p), cornerUV(triangles[t + 1], p), cornerUV(triangles[t + 2], p), Utils.TRI_INDEX);
   }
   if (!faces.length) return null;
 
@@ -251,14 +282,8 @@ function buildMesh(gltf, gl, primitives, position, matrix) {
   mesh.setVertices(vertices);
   mesh.setFaces(new Uint32Array(faces));
   mesh.setColors(baseColours(gltf, primitives, owner, weldOf, vertices.length / 3, first));
-  if (uv) {
-    var flipped = new Float32Array(uv.length);
-    for (var u = 0; u < uv.length; u += 2) {
-      flipped[u] = uv[u];
-      flipped[u + 1] = 1.0 - uv[u + 1]; // glTF has v going down, SculptGL up
-    }
-    mesh.initTexCoordsDataFromOBJData(flipped, uvFaces);
-  }
+  mesh.setMaterials(baseMaterials(gltf, primitives, owner, weldOf, vertices.length / 3));
+  mesh.initTexCoordsDataFromOBJData(new Float32Array(texCoords), uvFaces);
 
   var inverse = mat4.create();
   mat4.invert(inverse, matrix);
@@ -276,8 +301,65 @@ function buildMesh(gltf, gl, primitives, position, matrix) {
     matrix: matrix,
     inverse: inverse,
     normalMatrix: normalMatrix,
-    uv: uv
+    atlas: atlas
   };
+}
+
+var ATLAS_SIZE = 2048;
+
+// Cells of the atlas: one per (texture, tint, alpha mode) used by the mesh,
+// or a plain colour cell for materials without texture.
+function atlasLayout(gltf, primitives, hasUV) {
+  var json = gltf.json;
+  var slots = [];
+  var keys = {};
+  var slotOf = primitives.map(function (primitive) {
+    var material = (json.materials && json.materials[primitive.material]) || {};
+    var pbr = material.pbrMetallicRoughness || {};
+    var factor = pbr.baseColorFactor || [1, 1, 1, 1];
+    var info = pbr.baseColorTexture;
+    var image = null;
+    if (hasUV && info && (info.texCoord || 0) === 0 && json.textures && json.textures[info.index]) {
+      var source = json.textures[info.index].source;
+      if (source !== undefined && json.images[source] && json.images[source].bufferView !== undefined) image = source;
+    }
+    var mode = material.alphaMode || 'OPAQUE';
+    var key = image + '|' + factor.join(',') + '|' + mode;
+    if (keys[key] === undefined) {
+      keys[key] = slots.length;
+      slots.push({ image: image, factor: factor, opaque: mode === 'OPAQUE' });
+    }
+    return keys[key];
+  });
+  var columns = Math.ceil(Math.sqrt(slots.length));
+  var rows = Math.ceil(slots.length / columns);
+  slots.forEach(function (slot, i) {
+    slot.column = i % columns;
+    slot.row = Math.floor(i / columns);
+  });
+  // a couple of texels of margin so filtering does not bleed between cells
+  var cell = ATLAS_SIZE / Math.max(columns, rows);
+  return { slots: slots, slotOf: slotOf, columns: columns, rows: rows, inset: Math.min(0.25, 3 / cell) };
+}
+
+// Roughness and metalness from the material: glossy defaults made skin and
+// cloth look dark and plastic.
+function baseMaterials(gltf, primitives, owner, weldOf, nbWelded) {
+  var json = gltf.json;
+  var materials = new Float32Array(nbWelded * 3);
+  for (var i = 0; i < nbWelded; ++i) {
+    materials[i * 3] = 0.8;
+    materials[i * 3 + 2] = 1.0; // not masked
+  }
+  for (var v = 0; v < owner.length; ++v) {
+    var w = weldOf[v];
+    if (w < 0) continue;
+    var material = (json.materials && json.materials[primitives[owner[v]].material]) || {};
+    var pbr = material.pbrMetallicRoughness || {};
+    materials[w * 3] = pbr.roughnessFactor === undefined ? 1.0 : pbr.roughnessFactor;
+    materials[w * 3 + 1] = pbr.metallicFactor === undefined ? 1.0 : pbr.metallicFactor;
+  }
+  return materials;
 }
 
 function toSRGB(value) {
@@ -285,8 +367,8 @@ function toSRGB(value) {
 }
 
 // Flat colours to start with: vertex colours when the file has them,
-// otherwise the material's base colour. Textures are sampled afterwards
-// (they need asynchronous image decoding, see Import.paintTextures).
+// otherwise the material's base colour. Meshes with textures switch to
+// the real textures once they are decoded (see Import.buildAtlases).
 function baseColours(gltf, primitives, owner, weldOf, nbWelded, attributes) {
   var json = gltf.json;
   var colours = new Float32Array(nbWelded * 3).fill(1.0);
@@ -315,72 +397,98 @@ function baseColours(gltf, primitives, owner, weldOf, nbWelded, attributes) {
 function decodeImage(gltf, imageIndex) {
   var json = gltf.json;
   var image = json.images[imageIndex];
-  if (!image || image.bufferView === undefined) return Promise.resolve(null);
   var view = json.bufferViews[image.bufferView];
   var bin = gltf.rest[0].data;
   var bytes = bin.subarray(view.byteOffset || 0, (view.byteOffset || 0) + view.byteLength);
   var blob = new Blob([bytes], { type: image.mimeType || 'image/png' });
-  return createImageBitmap(blob).then(function (bitmap) {
-    var scale = Math.min(1, 1024 / Math.max(bitmap.width, bitmap.height));
-    var canvas = document.createElement('canvas');
-    canvas.width = Math.max(1, Math.round(bitmap.width * scale));
-    canvas.height = Math.max(1, Math.round(bitmap.height * scale));
-    var context = canvas.getContext('2d');
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    if (bitmap.close) bitmap.close();
-    return context.getImageData(0, 0, canvas.width, canvas.height);
-  }).catch(function () {
+  return createImageBitmap(blob).catch(function () {
     return null;
   });
 }
 
-// Gives the sculpting view the look of the textures, as vertex colours, so
-// eyes, mouth, clothes and hair can be told apart. Display only: the
-// original textures in the exported file are not touched.
-Import.paintTextures = function (result, onMeshPainted) {
-  var json = result.gltf.json;
-  var cache = {};
-  var jobs = result.entries.map(function (entry) {
-    if (!entry.uv) return Promise.resolve();
-    var images = entry.primitives.map(function (primitive) {
-      var material = json.materials && json.materials[primitive.material];
-      var info = material && material.pbrMetallicRoughness && material.pbrMetallicRoughness.baseColorTexture;
-      if (!info || (info.texCoord || 0) !== 0) return Promise.resolve(null);
-      var texture = json.textures[info.index];
-      if (!texture || texture.source === undefined) return Promise.resolve(null);
-      cache[texture.source] = cache[texture.source] || decodeImage(result.gltf, texture.source);
-      return cache[texture.source];
-    });
-    return Promise.all(images).then(function (pixels) {
-      if (!pixels.some(Boolean)) return;
-      var colours = entry.mesh.getColors();
-      var sum = new Float32Array(entry.nbWelded * 4);
-      for (var v = 0; v < entry.owner.length; ++v) {
-        var w = entry.weldOf[v];
-        if (w < 0) continue;
-        var image = pixels[entry.owner[v]];
-        if (!image) continue;
-        var s = entry.uv[v * 2] - Math.floor(entry.uv[v * 2]);
-        var t = entry.uv[v * 2 + 1] - Math.floor(entry.uv[v * 2 + 1]);
-        var x = Math.min(image.width - 1, Math.floor(s * image.width));
-        var y = Math.min(image.height - 1, Math.floor(t * image.height));
-        var at = (y * image.width + x) * 4;
-        if (image.data[at + 3] < 40) continue; // transparent texel: keep the flat colour
-        sum[w * 4] += image.data[at] / 255;
-        sum[w * 4 + 1] += image.data[at + 1] / 255;
-        sum[w * 4 + 2] += image.data[at + 2] / 255;
-        sum[w * 4 + 3] += 1;
-      }
-      for (var i = 0; i < entry.nbWelded; ++i) {
-        var n = sum[i * 4 + 3];
-        if (!n) continue;
-        // flat colour already holds the material tint
-        for (var c = 0; c < 3; ++c) colours[i * 3 + c] *= sum[i * 4 + c] / n;
-      }
-      onMeshPainted(entry);
-    });
+function cssColour(factor) {
+  var c = [0, 1, 2].map(function (i) {
+    return Math.round(255 * toSRGB(Math.min(1, Math.max(0, factor[i]))));
   });
-  return Promise.all(jobs);
+  return 'rgb(' + c.join(',') + ')';
+}
+
+// Paints each mesh's atlas from the original textures (tinted by the base
+// colour factor) and hands it to the mesh. Display only: the textures in
+// the exported file are never touched.
+Import.buildAtlases = function (result, gl, onMeshPainted) {
+  var images = {};
+  var load = function (index) {
+    if (!images[index]) images[index] = decodeImage(result.gltf, index);
+    return images[index];
+  };
+  return Promise.all(result.entries.map(function (entry) {
+    var atlas = entry.atlas;
+    var textured = atlas.slots.some(function (slot) {
+      return slot.image !== null;
+    });
+    // flat colours are already in the vertex colours
+    if (!textured) return null;
+    return Promise.all(atlas.slots.map(function (slot) {
+      return slot.image === null ? null : load(slot.image);
+    })).then(function (bitmaps) {
+      var canvas = document.createElement('canvas');
+      canvas.width = canvas.height = ATLAS_SIZE;
+      var ctx = canvas.getContext('2d');
+      var w = ATLAS_SIZE / atlas.columns;
+      var h = ATLAS_SIZE / atlas.rows;
+      atlas.slots.forEach(function (slot, i) {
+        var x = slot.column * w;
+        var y = slot.row * h;
+        var bitmap = bitmaps[i];
+        ctx.save();
+        ctx.beginPath();
+        ctx.rect(x, y, w, h);
+        ctx.clip();
+        var tint = cssColour(slot.factor);
+        if (!bitmap) {
+          ctx.globalAlpha = slot.opaque ? 1 : slot.factor[3];
+          ctx.fillStyle = tint;
+          ctx.fillRect(x, y, w, h);
+        } else {
+          var ix = x + atlas.inset * w;
+          var iy = y + atlas.inset * h;
+          var iw = w * (1 - 2 * atlas.inset);
+          var ih = h * (1 - 2 * atlas.inset);
+          if (slot.opaque) {
+            ctx.fillStyle = tint; // opaque materials ignore the texture's alpha
+            ctx.fillRect(x, y, w, h);
+          }
+          // the margin repeats the border texels instead of being empty
+          ctx.drawImage(bitmap, x, y, w, h);
+          ctx.drawImage(bitmap, ix, iy, iw, ih);
+          if (slot.factor.slice(0, 3).some(function (f) {
+            return f < 1;
+          })) {
+            ctx.globalCompositeOperation = 'multiply';
+            ctx.fillStyle = tint;
+            ctx.fillRect(x, y, w, h);
+            if (!slot.opaque) {
+              ctx.globalCompositeOperation = 'destination-in'; // keep the texture's alpha
+              ctx.drawImage(bitmap, x, y, w, h);
+              ctx.drawImage(bitmap, ix, iy, iw, ih);
+            }
+          }
+        }
+        ctx.restore();
+      });
+      var texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR_MIPMAP_LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.bindTexture(gl.TEXTURE_2D, null);
+      onMeshPainted(entry, texture);
+    });
+  }));
 };
 
 export default Import;

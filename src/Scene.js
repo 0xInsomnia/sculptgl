@@ -636,9 +636,12 @@ class Scene {
     var previous = this._glbSource;
     if (restoring && previous) glb.entries = previous.entries.concat(glb.entries);
     this._glbSource = glb;
-    ImportGLB.paintTextures({ gltf: glb.gltf, entries: glb.entries.slice(-newMeshes.length) }, function (entry) {
+    ImportGLB.buildAtlases({ gltf: glb.gltf, entries: glb.entries.slice(-newMeshes.length) }, this._gl, function (entry, texture) {
+      // the texture now carries the colour: vertex colours go back to white
+      // (painting with the Paint tool tints on top of it)
+      entry.mesh.getColors().fill(1.0);
       entry.mesh.updateDuplicateColorsAndMaterials();
-      entry.mesh.updateColorBuffer();
+      entry.mesh.setAlbedoMap(texture);
       main.render();
     });
     if (glb.notes.length) console.warn('GLB import:\n' + glb.notes.join('\n'));

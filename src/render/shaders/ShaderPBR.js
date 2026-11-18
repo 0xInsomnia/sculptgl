@@ -1,6 +1,7 @@
 import { mat3 } from 'gl-matrix';
 import getOptionsURL from 'misc/getOptionsURL';
 import ShaderBase from 'render/shaders/ShaderBase';
+import AlbedoMap from 'render/shaders/AlbedoMap';
 import pbrGLSL from 'render/shaders/glsl/pbr.glsl';
 
 var ShaderPBR = ShaderBase.getCopy();
@@ -56,6 +57,7 @@ ShaderPBR.vertex = [
   'attribute vec3 aNormal;',
   'attribute vec3 aColor;',
   'attribute vec3 aMaterial;',
+  AlbedoMap.vertexDeclarations,
   ShaderBase.strings.vertUniforms,
   'uniform float uRoughness;',
   'uniform float uMetallic;',
@@ -67,6 +69,7 @@ ShaderPBR.vertex = [
   'varying float vMetallic;',
   'varying float vMasking;',
   'void main() {',
+  AlbedoMap.vertexMain,
   '  vAlbedo = uAlbedo.x >= 0.0 ? uAlbedo : aColor;',
   '  vRoughness = uRoughness >= 0.0 ? uRoughness : aMaterial.x;',
   '  vMetallic = uMetallic >= 0.0 ? uMetallic : aMaterial.y;',
@@ -81,6 +84,7 @@ ShaderPBR.vertex = [
 ].join('\n');
 
 ShaderPBR.fragment = [
+  AlbedoMap.fragmentDeclarations,
   'varying vec3 vVertex;',
   'varying vec3 vNormal;',
   'varying vec3 vAlbedo;',
@@ -92,9 +96,10 @@ ShaderPBR.fragment = [
   pbrGLSL,
   '',
   'void main(void) {',
+  AlbedoMap.fragmentSample,
   '  vec3 normal = getNormal();',
   '  float roughness = max( 0.0001, vRoughness );',
-  '  vec3 linColor = sRGBToLinear(vAlbedo);',
+  '  vec3 linColor = sRGBToLinear(vAlbedo) * sRGBToLinear(albedoTex.rgb);',
   '  vec3 albedo = linColor * (1.0 - vMetallic);',
   '  vec3 specular = mix( vec3(0.04), linColor, vMetallic);',
   '',
@@ -173,5 +178,7 @@ ShaderPBR.updateUniforms = function (mesh, main) {
 
   ShaderBase.updateUniforms.call(this, mesh, main);
 };
+
+AlbedoMap.install(ShaderPBR);
 
 export default ShaderPBR;

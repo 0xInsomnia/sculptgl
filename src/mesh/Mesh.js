@@ -1876,7 +1876,19 @@ class Mesh {
 
   isUsingTexCoords() {
     var shaderType = this._renderData._shaderType;
-    return shaderType === Enums.Shader.UV || shaderType === Enums.Shader.PAINTUV;
+    if (shaderType === Enums.Shader.UV || shaderType === Enums.Shader.PAINTUV) return true;
+    // lit shaders read texture coordinates only to show a colour texture
+    return !!this._renderData._albedoMap && this.hasUV() &&
+      (shaderType === Enums.Shader.PBR || shaderType === Enums.Shader.MATCAP);
+  }
+
+  getAlbedoMap() {
+    return this._renderData._albedoMap;
+  }
+
+  setAlbedoMap(texture) {
+    this._renderData._albedoMap = texture;
+    this.setShaderType(this.getShaderType()); // rebuilds the buffers with or without UVs
   }
 
   isTransparent() {
